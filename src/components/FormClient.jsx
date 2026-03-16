@@ -118,7 +118,11 @@ const FormClient = () => {
       />
 
       <Card className="p-4 shadow-sm border-0">
-        <Form onSubmit={handleSubmit(onSubmit)}>
+        <Form
+          onSubmit={handleSubmit(onSubmit)}
+          netlify
+          name="portal-cautivo-bbc"
+        >
           <div key={currentField.id}>
             <Form.Label className="fw-bold text-secondary small text-uppercase">
               {currentField.label}
