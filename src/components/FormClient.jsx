@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -11,7 +11,7 @@ import {
   Spinner,
 } from "react-bootstrap";
 
-// 1. Esquema de validación
+// 1. Esquema de validación con Zod
 const schema = z.object({
   name: z.string().min(3, "Ingresa tu nombre completo"),
   birthdate: z.string().min(1, "La fecha es obligatoria"),
@@ -72,7 +72,7 @@ const FormClient = () => {
     mode: "onChange",
   });
 
-  // Utilidad para codificar datos para Netlify
+  // Función para codificar los datos para Netlify (application/x-www-form-urlencoded)
   const encode = (data) => {
     return Object.keys(data)
       .map(
@@ -92,14 +92,17 @@ const FormClient = () => {
       await fetch("/", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        // IMPORTANTE: Incluimos el 'form-name' para que Netlify sepa qué formulario es
         body: encode({ "form-name": "portal-cautivo", ...data }),
       });
 
-      // Lógica Post-Envío: Aquí disparas el login de tu Router (MikroTik/etc)
-      alert("Registro completado. Conectando al WiFi...");
-      // window.location.href = "URL_DE_LOGIN_DEL_ROUTER";
+      alert("¡Registro exitoso! Conectando a la red...");
+
+      // Aquí iría tu lógica para activar el internet en el router
+      // Ejemplo: document.getElementById('router-login').submit();
     } catch (error) {
-      alert("Error al enviar los datos. Inténtalo de nuevo.");
+      console.error("Error en el envío:", error);
+      alert("Hubo un error al enviar los datos.");
     } finally {
       setLoading(false);
     }
@@ -112,19 +115,23 @@ const FormClient = () => {
     <Container className="mt-5" style={{ maxWidth: "480px" }}>
       <ProgressBar
         now={progress}
-        variant="info"
+        variant="primary"
         className="mb-4"
-        style={{ height: "8px" }}
+        style={{ height: "10px" }}
       />
 
-      <Card className="p-4 shadow-sm border-0">
+      <Card className="p-4 shadow border-0">
+        {/* Agregamos atributos oficiales de Netlify al componente de React */}
         <Form
           onSubmit={handleSubmit(onSubmit)}
-          netlify
-          name="portal-cautivo-bbc"
+          name="portal-cautivo"
+          data-netlify="true"
         >
+          {/* Mantenemos el campo oculto de form-name por redundancia de seguridad */}
+          <input type="hidden" name="form-name" value="portal-cautivo" />
+
           <div key={currentField.id}>
-            <Form.Label className="fw-bold text-secondary small text-uppercase">
+            <Form.Label className="fw-bold text-dark small text-uppercase">
               {currentField.label}
             </Form.Label>
 
@@ -134,7 +141,7 @@ const FormClient = () => {
                 isInvalid={!!errors[currentField.id]}
                 defaultValue={getValues(currentField.id) || ""}
               >
-                <option value="">Selecciona...</option>
+                <option value="">Selecciona una opción...</option>
                 {currentField.options.map((opt) => (
                   <option key={opt} value={opt}>
                     {opt}
@@ -163,11 +170,11 @@ const FormClient = () => {
               onClick={() => setStep(step - 1)}
               className={`text-decoration-none text-muted ${step === 0 || loading ? "invisible" : ""}`}
             >
-              Anterior
+              ← Anterior
             </Button>
 
             {step < pasos.length - 1 ? (
-              <Button variant="primary" className="px-4" onClick={handleNext}>
+              <Button variant="dark" className="px-4" onClick={handleNext}>
                 Siguiente
               </Button>
             ) : (
@@ -180,7 +187,7 @@ const FormClient = () => {
                 {loading ? (
                   <Spinner animation="border" size="sm" />
                 ) : (
-                  "Conectar"
+                  "Finalizar"
                 )}
               </Button>
             )}
