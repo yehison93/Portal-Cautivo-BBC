@@ -10,11 +10,12 @@ import Sponsors from "./Sponsors";
 import Footer from "./Footer";
 import logo from "../assets/logo.png";
 import spinner from "../assets/logoSpinner.png";
+import FormClient from "./FormClient";
 
 // Importa dinámicamente todas las imágenes de la carpeta Fotos_Maremares.
 // `import.meta.glob` devuelve un objeto con funciones que cargan los módulos.
 const images = import.meta.glob(
-  "../assets/Fotos_Maremares/*.{png,jpg,jpeg,heic}"
+  "../assets/Fotos_Maremares/*.{png,jpg,jpeg,heic}",
 );
 
 const PortalCautive = ({
@@ -117,6 +118,7 @@ const PortalCautive = ({
             {macAddress ? (
               <>
                 <Card.Text>{message}</Card.Text>
+                <FormClient />
                 <Button
                   className="btn-submit"
                   variant="light"

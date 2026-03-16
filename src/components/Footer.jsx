@@ -1,5 +1,5 @@
 // Pie de página simple que muestra el año actual y el nombre del hotel.
-// No tiene estado ni props; se mantiene aquí como un componente presentacional.
+// No tiene estado ni props; se mantiene aquí como un componente presentational.
 const Footer = () => {
   // Año actual mostrado dinámicamente para evitar actualizaciones manuales.
   const currentYear = new Date().getFullYear();
