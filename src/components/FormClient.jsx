@@ -88,6 +88,7 @@ const FormClient = () => {
       if (currentId === "phone") {
         setLoading(true);
         try {
+          // Verificar si el número ya existe en la base de datos
           const res = await fetch("/.netlify/functions/check-user", {
             method: "POST",
             body: JSON.stringify({ phone: getValues("phone") }),
