@@ -10,7 +10,7 @@ import {
   ProgressBar,
   Image,
 } from "react-bootstrap";
-import spinner from "../assets/logoSpinner.png";
+import spinnerImg from "../assets/logoSpinner.png";
 
 const schema = z.object({
   phone: z.string().min(8, "Número inválido").regex(/^\d+$/, "Solo números"),
@@ -63,7 +63,6 @@ const FormClient = ({
   showInstagramBtn,
   isIOS,
   iosUrl,
-  androidUrl,
   clientLoading,
   connected,
 }) => {
@@ -96,11 +95,10 @@ const FormClient = ({
     if (isStepValid) {
       if (currentId === "phone") {
         setLoading(true);
-        const phoneValue = getValues("phone");
         try {
           const res = await fetch("/.netlify/functions/check-user", {
             method: "POST",
-            body: JSON.stringify({ phone: phoneValue }),
+            body: JSON.stringify({ phone: getValues("phone") }),
           });
           const data = await res.json();
           if (data.exists) {
@@ -115,7 +113,6 @@ const FormClient = ({
           setLoading(false);
         }
       } else {
-        // Guardamos el nombre conforme lo escriben para la pantalla final de nuevos usuarios
         if (currentId === "name") setUserName(getValues("name"));
         setStep((prev) => prev + 1);
       }
@@ -132,58 +129,30 @@ const FormClient = ({
           body: encode({ "form-name": "portal-cautivo", ...data }),
         });
       }
-      alert("Conectando al servicio WiFi...");
-      // Lógica de redirección al router aquí
+      handleConnect(10000, 10000, 10080);
     } catch (error) {
-      alert("Error de red");
+      alert("Error de conexión");
     } finally {
       setLoading(false);
     }
   };
 
+  const isAnyLoading = loading || clientLoading;
   const currentField = pasos[step];
   const isLastStep = step >= pasos.length;
 
   return (
     <Container>
-      <style>{`
-        body {
-          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-          color: white;
-        }
-        .glass-card {
-          background: rgba(255, 255, 255, 0.05);
-          backdrop-filter: blur(15px);
-          -webkit-backdrop-filter: blur(15px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 24px;
-          color: white;
-        }
-        .form-control, .form-select {
-          background: rgba(255, 255, 255, 0.1);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          color: white !important;
-          border-radius: 12px;
-          padding: 12px;
-        }
-        .form-control:focus, .form-select:focus {
-          background: rgba(255, 255, 255, 0.15);
-          border-color: #00d2ff;
-          box-shadow: 0 0 15px rgba(0, 210, 255, 0.3);
-        }
-        .form-control::placeholder { color: rgba(255, 255, 255, 0.4); }
-        .progress { background: rgba(255, 255, 255, 0.1); border-radius: 20px; }
-      `}</style>
-
       <div style={{ width: "100%", maxWidth: "420px" }}>
-        <Card className="glass-card p-4 shadow-lg">
+        <Card className="glass-card p-4 shadow-lg border-0">
           {!isLastStep && (
             <ProgressBar
               now={((step + 1) / pasos.length) * 100}
               variant="info"
-              className="mb-4"
+              className="mb-4 progress-custom"
             />
           )}
+
           <Form
             onSubmit={handleSubmit(onSubmit)}
             name="portal-cautivo"
@@ -205,11 +174,15 @@ const FormClient = ({
                       {...register(currentField.id)}
                       isInvalid={!!errors[currentField.id]}
                     >
-                      <option value="" className="bg-dark">
+                      <option value="" className="bg-dark-option">
                         Seleccionar...
                       </option>
                       {currentField.options.map((opt) => (
-                        <option key={opt} value={opt} className="bg-dark">
+                        <option
+                          key={opt}
+                          value={opt}
+                          className="bg-dark-option"
+                        >
                           {opt}
                         </option>
                       ))}
@@ -242,15 +215,12 @@ const FormClient = ({
                   <Button
                     variant="info"
                     onClick={handleNext}
-                    disabled={loading}
-                    className="px-5 py-2 rounded-pill fw-bold text-white shadow"
+                    disabled={isAnyLoading}
+                    className="px-5 py-2 rounded-pill fw-bold text-white shadow d-flex align-items-center justify-content-center"
+                    style={{ minWidth: "130px" }}
                   >
-                    {loading ? (
-                      <Image
-                        className="spinner"
-                        src={spinner}
-                        alt="Cargando..."
-                      />
+                    {isAnyLoading ? (
+                      <Image className="spinner" src={spinnerImg} />
                     ) : (
                       "Siguiente"
                     )}
@@ -264,8 +234,10 @@ const FormClient = ({
                 </div>
                 <h2 className="fw-bold mb-2">¡Todo listo, {userName}!</h2>
 
-                {clientLoading ? (
-                  <Image className="spinner" src={spinner} alt="Cargando..." />
+                {isAnyLoading ? (
+                  <div className="py-3">
+                    <Image className="spinner" src={spinnerImg} />
+                  </div>
                 ) : (
                   !connected && (
                     <>
@@ -276,23 +248,10 @@ const FormClient = ({
                         variant="primary"
                         type="submit"
                         size="lg"
-                        className="w-100 rounded-pill py-3 fw-bold shadow-lg border-0"
-                        onClick={() => handleConnect(10000, 10000, 10080)}
-                        style={{
-                          background:
-                            "linear-gradient(45deg, #00d2ff 0%, #3a7bd5 100%)",
-                        }}
-                        disabled={loading}
+                        className="w-100 rounded-pill py-3 fw-bold shadow-lg border-0 btn-grad-blue"
+                        disabled={isAnyLoading}
                       >
-                        {loading ? (
-                          <Image
-                            className="spinner"
-                            src={spinner}
-                            alt="Cargando..."
-                          />
-                        ) : (
-                          "ACCEDER A INTERNET"
-                        )}
+                        ACCEDER A INTERNET
                       </Button>
 
                       <Button
@@ -306,17 +265,18 @@ const FormClient = ({
                       >
                         ¿No eres tú? Cambiar datos
                       </Button>
-                      <Button
-                        className="btn-submit"
-                        variant="light"
-                        aria-label="Ir a Instagram"
-                        href={isIOS ? iosUrl : instagramUrl}
-                        hidden={loading || !connected || !showInstagramBtn}
-                      >
-                        NAVEGAR
-                      </Button>
                     </>
                   )
+                )}
+
+                {connected && (
+                  <Button
+                    className="w-100 rounded-pill py-3 fw-bold shadow-lg mt-3"
+                    variant="light"
+                    href={isIOS ? iosUrl : instagramUrl}
+                  >
+                    NAVEGAR AHORA
+                  </Button>
                 )}
               </div>
             )}

@@ -29,7 +29,8 @@
 }
 
 .btn-submit {
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif !important;
+  font-family:
+    Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif !important;
   animation: growShrink 1s ease-in-out infinite alternate;
 }
 
@@ -82,6 +83,72 @@
   font-size: 2rem;
   animation: mirror 5s ease-in-out infinite alternate;
   transform: scale(1.5);
+}
+
+/* Estilizado del Fondo General */
+body {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  min-height: 100vh;
+  color: white;
+}
+
+/* Tarjeta con Efecto Cristal (Glassmorphism) */
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px); /* Soporte para Safari */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  color: white;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* Personalización de Inputs y Selects */
+.glass-card .form-control,
+.glass-card .form-select {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  border-radius: 12px;
+  padding: 12px;
+  transition: all 0.3s ease;
+}
+
+.glass-card .form-control:focus,
+.glass-card .form-select:focus {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: #00d2ff !important;
+  box-shadow: 0 0 15px rgba(0, 210, 255, 0.3) !important;
+  outline: none;
+}
+
+.glass-card .form-control::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Barra de Progreso */
+.glass-card .progress {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+/* Ajustes para Opciones del Select en modo oscuro */
+.bg-dark-option {
+  background-color: #1a1a2e;
+  color: white;
+}
+
+/* Utilidades de botones */
+.btn-grad-blue {
+  background: linear-gradient(45deg, #00d2ff 0%, #3a7bd5 100%);
+  border: none;
+  transition: transform 0.2s ease;
+}
+
+.btn-grad-blue:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 210, 255, 0.4);
 }
 @keyframes mirror {
   0% {
