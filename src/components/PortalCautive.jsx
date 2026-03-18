@@ -9,7 +9,6 @@ import { useState, useEffect } from "react";
 import Sponsors from "./Sponsors";
 import Footer from "./Footer";
 import logo from "../assets/logo.png";
-import spinner from "../assets/logoSpinner.png";
 import FormClient from "./FormClient";
 
 // Importa dinámicamente todas las imágenes de la carpeta Fotos_Maremares.
@@ -117,34 +116,15 @@ const PortalCautive = ({
             {/* Si existe la MAC mostramos los botones de conectar/navegar */}
             {macAddress ? (
               <>
-                {/* <Card.Text>{message}</Card.Text> */}
-
-                <Button
-                  className="btn-submit"
-                  variant="light"
-                  aria-label="Ir a Instagram"
-                  href={isIOS ? iosUrl : instagramUrl}
-                  hidden={loading || !connected || !showInstagramBtn}
-                >
-                  NAVEGAR
-                </Button>
-
-                {/* Spinner cuando `loading` es true; botón CONECTAR cuando no */}
-                {loading ? (
-                  <Image className="spinner" src={spinner} alt="Cargando..." />
-                ) : (
-                  !connected && (
-                    <FormClient
-                      handleConnect={handleConnect}
-                      instagramUrl={instagramUrl}
-                      showInstagramBtn={showInstagramBtn}
-                      isIOS={isIOS}
-                      iosUrl={iosUrl}
-                      loading={loading}
-                      connected={connected}
-                    />
-                  )
-                )}
+                <FormClient
+                  handleConnect={handleConnect}
+                  instagramUrl={instagramUrl}
+                  showInstagramBtn={showInstagramBtn}
+                  isIOS={isIOS}
+                  iosUrl={iosUrl}
+                  clientLoading={loading}
+                  connected={connected}
+                />
               </>
             ) : (
               // Si no hay macAddress mostramos sólo el mensaje de error/instrucción

@@ -64,11 +64,11 @@ const FormClient = ({
   isIOS,
   iosUrl,
   androidUrl,
-  loading,
+  clientLoading,
   connected,
 }) => {
   const [step, setStep] = useState(0);
-
+  const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState("");
 
   const {
@@ -95,7 +95,7 @@ const FormClient = ({
 
     if (isStepValid) {
       if (currentId === "phone") {
-        loading(true);
+        setLoading(true);
         const phoneValue = getValues("phone");
         try {
           const res = await fetch("/.netlify/functions/check-user", {
@@ -112,7 +112,7 @@ const FormClient = ({
         } catch (error) {
           setStep((prev) => prev + 1);
         } finally {
-          loading(false);
+          setLoading(false);
         }
       } else {
         // Guardamos el nombre conforme lo escriben para la pantalla final de nuevos usuarios
@@ -123,7 +123,7 @@ const FormClient = ({
   };
 
   const onSubmit = async (data) => {
-    loading(true);
+    setLoading(true);
     try {
       if (!userName || step < pasos.length) {
         await fetch("/", {
@@ -137,7 +137,7 @@ const FormClient = ({
     } catch (error) {
       alert("Error de red");
     } finally {
-      loading(false);
+      setLoading(false);
     }
   };
 
@@ -263,44 +263,61 @@ const FormClient = ({
                   <span style={{ fontSize: "4rem" }}>🎯</span>
                 </div>
                 <h2 className="fw-bold mb-2">¡Todo listo, {userName}!</h2>
-                <p className="text-white-50 mb-4">
-                  Haz clic abajo para iniciar tu navegación segura.
-                </p>
 
-                <Button
-                  variant="primary"
-                  type="submit"
-                  size="lg"
-                  className="w-100 rounded-pill py-3 fw-bold shadow-lg border-0"
-                  onClick={() => handleConnect(10000, 10000, 10080)}
-                  style={{
-                    background:
-                      "linear-gradient(45deg, #00d2ff 0%, #3a7bd5 100%)",
-                  }}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <Image
-                      className="spinner"
-                      src={spinner}
-                      alt="Cargando..."
-                    />
-                  ) : (
-                    "ACCEDER A INTERNET"
-                  )}
-                </Button>
+                {clientLoading ? (
+                  <Image className="spinner" src={spinner} alt="Cargando..." />
+                ) : (
+                  !connected && (
+                    <>
+                      <p className="text-white-50 mb-4">
+                        Haz clic abajo para iniciar tu navegación segura.
+                      </p>
+                      <Button
+                        variant="primary"
+                        type="submit"
+                        size="lg"
+                        className="w-100 rounded-pill py-3 fw-bold shadow-lg border-0"
+                        onClick={() => handleConnect(10000, 10000, 10080)}
+                        style={{
+                          background:
+                            "linear-gradient(45deg, #00d2ff 0%, #3a7bd5 100%)",
+                        }}
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <Image
+                            className="spinner"
+                            src={spinner}
+                            alt="Cargando..."
+                          />
+                        ) : (
+                          "ACCEDER A INTERNET"
+                        )}
+                      </Button>
 
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="mt-4 text-white-50 text-decoration-none"
-                  onClick={() => {
-                    setStep(0);
-                    setUserName("");
-                  }}
-                >
-                  ¿No eres tú? Cambiar datos
-                </Button>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="mt-4 text-white-50 text-decoration-none"
+                        onClick={() => {
+                          setStep(0);
+                          setUserName("");
+                        }}
+                      >
+                        ¿No eres tú? Cambiar datos
+                      </Button>
+                      <Button
+                        className="btn-submit"
+                        variant="light"
+                        aria-label="Ir a Instagram"
+                        href={isIOS ? iosUrl : instagramUrl}
+                        hidden={loading || !connected || !showInstagramBtn}
+                      >
+                        NAVEGAR
+                      </Button>
+                    </>
+                  )
+                )}
               </div>
             )}
           </Form>
