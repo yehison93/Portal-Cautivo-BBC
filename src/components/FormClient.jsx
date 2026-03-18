@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -8,8 +8,9 @@ import {
   Container,
   Card,
   ProgressBar,
-  Spinner,
+  Image,
 } from "react-bootstrap";
+import spinner from "../assets/logoSpinner.png";
 
 const schema = z.object({
   phone: z.string().min(8, "Número inválido").regex(/^\d+$/, "Solo números"),
@@ -56,9 +57,18 @@ const pasos = [
   },
 ];
 
-const FormClient = () => {
+const FormClient = ({
+  handleConnect,
+  instagramUrl,
+  showInstagramBtn,
+  isIOS,
+  iosUrl,
+  androidUrl,
+  loading,
+  connected,
+}) => {
   const [step, setStep] = useState(0);
-  const [loading, setLoading] = useState(false);
+
   const [userName, setUserName] = useState("");
 
   const {
@@ -85,7 +95,7 @@ const FormClient = () => {
 
     if (isStepValid) {
       if (currentId === "phone") {
-        setLoading(true);
+        loading(true);
         const phoneValue = getValues("phone");
         try {
           const res = await fetch("/.netlify/functions/check-user", {
@@ -102,7 +112,7 @@ const FormClient = () => {
         } catch (error) {
           setStep((prev) => prev + 1);
         } finally {
-          setLoading(false);
+          loading(false);
         }
       } else {
         // Guardamos el nombre conforme lo escriben para la pantalla final de nuevos usuarios
@@ -113,7 +123,7 @@ const FormClient = () => {
   };
 
   const onSubmit = async (data) => {
-    setLoading(true);
+    loading(true);
     try {
       if (!userName || step < pasos.length) {
         await fetch("/", {
@@ -127,7 +137,7 @@ const FormClient = () => {
     } catch (error) {
       alert("Error de red");
     } finally {
-      setLoading(false);
+      loading(false);
     }
   };
 
@@ -135,7 +145,7 @@ const FormClient = () => {
   const isLastStep = step >= pasos.length;
 
   return (
-    <Container className="d-flex align-items-center justify-content-center min-vh-100">
+    <Container>
       <style>{`
         body {
           background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -166,15 +176,14 @@ const FormClient = () => {
       `}</style>
 
       <div style={{ width: "100%", maxWidth: "420px" }}>
-        {!isLastStep && (
-          <ProgressBar
-            now={((step + 1) / pasos.length) * 100}
-            variant="info"
-            className="mb-4"
-          />
-        )}
-
         <Card className="glass-card p-4 shadow-lg">
+          {!isLastStep && (
+            <ProgressBar
+              now={((step + 1) / pasos.length) * 100}
+              variant="info"
+              className="mb-4"
+            />
+          )}
           <Form
             onSubmit={handleSubmit(onSubmit)}
             name="portal-cautivo"
@@ -236,7 +245,15 @@ const FormClient = () => {
                     disabled={loading}
                     className="px-5 py-2 rounded-pill fw-bold text-white shadow"
                   >
-                    {loading ? <Spinner size="sm" /> : "Siguiente"}
+                    {loading ? (
+                      <Image
+                        className="spinner"
+                        src={spinner}
+                        alt="Cargando..."
+                      />
+                    ) : (
+                      "Siguiente"
+                    )}
                   </Button>
                 </div>
               </div>
@@ -255,6 +272,7 @@ const FormClient = () => {
                   type="submit"
                   size="lg"
                   className="w-100 rounded-pill py-3 fw-bold shadow-lg border-0"
+                  onClick={() => handleConnect(10000, 10000, 10080)}
                   style={{
                     background:
                       "linear-gradient(45deg, #00d2ff 0%, #3a7bd5 100%)",
@@ -262,7 +280,11 @@ const FormClient = () => {
                   disabled={loading}
                 >
                   {loading ? (
-                    <Spinner animation="border" />
+                    <Image
+                      className="spinner"
+                      src={spinner}
+                      alt="Cargando..."
+                    />
                   ) : (
                     "ACCEDER A INTERNET"
                   )}
@@ -283,9 +305,6 @@ const FormClient = () => {
             )}
           </Form>
         </Card>
-        <p className="text-center mt-4 text-white-50 small opacity-50">
-          © 2026 Buddha Bar WiFi Service
-        </p>
       </div>
     </Container>
   );

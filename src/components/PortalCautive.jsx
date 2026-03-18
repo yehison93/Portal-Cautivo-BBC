@@ -117,8 +117,8 @@ const PortalCautive = ({
             {/* Si existe la MAC mostramos los botones de conectar/navegar */}
             {macAddress ? (
               <>
-                <Card.Text>{message}</Card.Text>
-                <FormClient />
+                {/* <Card.Text>{message}</Card.Text> */}
+
                 <Button
                   className="btn-submit"
                   variant="light"
@@ -134,15 +134,15 @@ const PortalCautive = ({
                   <Image className="spinner" src={spinner} alt="Cargando..." />
                 ) : (
                   !connected && (
-                    <Button
-                      className="btn-submit"
-                      variant="light"
-                      onClick={() => handleConnect(10000, 10000, 10080)}
-                      disabled={loading}
-                      aria-label="Conectar a WiFi"
-                    >
-                      CONECTAR
-                    </Button>
+                    <FormClient
+                      handleConnect={handleConnect}
+                      instagramUrl={instagramUrl}
+                      showInstagramBtn={showInstagramBtn}
+                      isIOS={isIOS}
+                      iosUrl={iosUrl}
+                      loading={loading}
+                      connected={connected}
+                    />
                   )
                 )}
               </>
