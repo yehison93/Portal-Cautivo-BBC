@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -11,9 +11,22 @@ import {
   Image,
   Stack,
 } from "react-bootstrap";
+
+// Importaciones de Firebase
+import { db } from "../firebase"; // Asegúrate de tener este archivo configurado
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc,
+  serverTimestamp,
+} from "firebase/firestore";
+
 import spinnerImg from "../assets/logoSpinner.png";
 
-// Schema y Pasos se mantienen igual...
 const schema = z.object({
   phone: z.string().min(8, "Número inválido").regex(/^\d+$/, "Solo números"),
   name: z.string().min(3, "Nombre muy corto"),
@@ -67,12 +80,12 @@ const FormClient = ({
   iosUrl,
   clientLoading,
   connected,
-  macAddress, // Nueva prop recibida
+  macAddress,
 }) => {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState("");
-  const [isAutoChecking, setIsAutoChecking] = useState(true); // Estado para la carga inicial por MAC
+  const [isAutoChecking, setIsAutoChecking] = useState(true);
 
   const {
     register,
@@ -85,40 +98,40 @@ const FormClient = ({
     mode: "onChange",
   });
 
-  const encode = (data) =>
-    Object.keys(data)
-      .map(
-        (key) => encodeURIComponent(key) + "=" + encodeURIComponent(data[key]),
-      )
-      .join("&");
+  // Función auxiliar para buscar usuarios en Firestore
+  const findUserInFirebase = async (field, value) => {
+    const q = query(collection(db, "clientes"), where(field, "==", value));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const userDoc = querySnapshot.docs[0];
+      return { id: userDoc.id, ...userDoc.data() };
+    }
+    return null;
+  };
 
-  // 1. Verificación inicial por MAC
+  // 1. Verificación inicial por MAC (Silent Check)
   useEffect(() => {
-    const checkMacSilently = async () => {
+    const checkMac = async () => {
       if (!macAddress) {
         setIsAutoChecking(false);
         return;
       }
       try {
-        const res = await fetch("/.netlify/functions/check-user", {
-          method: "POST",
-          body: JSON.stringify({ mac: macAddress }),
-        });
-        const data = await res.json();
-        if (data.exists) {
-          console.error(data.name);
-          setUserName(data.name);
+        const user = await findUserInFirebase("mac", macAddress);
+        if (user) {
+          setUserName(user.name);
           handleConnect(10000, 10000, 10080);
         }
       } catch (error) {
-        console.error("Error verificando MAC:", error);
+        console.error("Error Firebase MAC check:", error);
       } finally {
         setIsAutoChecking(false);
       }
     };
-    checkMacSilently();
+    checkMac();
   }, [macAddress, handleConnect]);
 
+  // 2. Lógica de "Siguiente" y verificación por Teléfono
   const handleNext = async () => {
     const currentId = pasos[step].id;
     const isStepValid = await trigger(currentId);
@@ -127,21 +140,24 @@ const FormClient = ({
       if (currentId === "phone") {
         setLoading(true);
         try {
-          const res = await fetch("/.netlify/functions/check-user", {
-            method: "POST",
-            body: JSON.stringify({
-              phone: getValues("phone"),
-              mac: macAddress, // Enviamos la MAC para actualizar si el usuario existe
-            }),
-          });
-          const data = await res.json();
-          if (data.exists) {
-            setUserName(data.name);
-            setStep(pasos.length);
+          const phoneNumber = getValues("phone");
+          const user = await findUserInFirebase("phone", phoneNumber);
+
+          if (user) {
+            // Si el teléfono existe, vinculamos la MAC actual al registro
+            const userRef = doc(db, "clientes", user.id);
+            await updateDoc(userRef, {
+              mac: macAddress,
+              lastConnection: serverTimestamp(),
+            });
+
+            setUserName(user.name);
+            setStep(pasos.length); // Ir al paso final "¡Todo listo!"
           } else {
             setStep((prev) => prev + 1);
           }
         } catch (error) {
+          console.error("Error Firebase Phone check:", error);
           setStep((prev) => prev + 1);
         } finally {
           setLoading(false);
@@ -153,24 +169,23 @@ const FormClient = ({
     }
   };
 
+  // 3. Registro de nuevo usuario en Firebase
   const onSubmit = async (data) => {
     setLoading(true);
     try {
+      // Solo guardamos si es un usuario que no existía (userName vacío)
       if (!userName || step < pasos.length) {
-        await fetch("/", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          // Incluimos la MAC en el registro de Netlify
-          body: encode({
-            "form-name": "portal-cautivo",
-            ...data,
-            mac: macAddress,
-          }),
+        await addDoc(collection(db, "clientes"), {
+          ...data,
+          mac: macAddress,
+          createdAt: serverTimestamp(),
+          source: "Captive Portal",
         });
       }
       handleConnect(10000, 10000, 10080);
     } catch (error) {
-      alert("Error de conexión");
+      console.error("Error guardando en Firebase:", error);
+      alert("Error al procesar el registro.");
     } finally {
       setLoading(false);
     }
@@ -180,12 +195,11 @@ const FormClient = ({
   const currentField = pasos[step];
   const isLastStep = step >= pasos.length;
 
-  // Mostramos spinner centrado durante la verificación silenciosa inicial
   if (isAutoChecking) {
     return (
       <Container
         className="d-flex justify-content-center align-items-center"
-        style={{ minHeight: "300px" }}
+        style={{ minHeight: "350px" }}
       >
         <Image className="spinner" src={spinnerImg} />
       </Container>
@@ -196,13 +210,7 @@ const FormClient = ({
     <Container>
       <div style={{ width: "100%", maxWidth: "420px" }}>
         <Card className="glass-card p-4 shadow-lg border-0">
-          <Form
-            onSubmit={handleSubmit(onSubmit)}
-            name="portal-cautivo"
-            data-netlify="true"
-          >
-            <input type="hidden" name="form-name" value="portal-cautivo" />
-
+          <Form onSubmit={handleSubmit(onSubmit)}>
             {!isLastStep ? (
               <div key={currentField.id}>
                 <Card.Title className="mb-4 text-center">
