@@ -9,10 +9,8 @@ import {
   Card,
   ProgressBar,
   Spinner,
-  Alert,
 } from "react-bootstrap";
 
-// 1. Esquema de validación (Zod)
 const schema = z.object({
   phone: z.string().min(8, "Número inválido").regex(/^\d+$/, "Solo números"),
   name: z.string().min(3, "Nombre muy corto"),
@@ -24,21 +22,20 @@ const schema = z.object({
   email: z.string().email("Correo electrónico inválido"),
 });
 
-// Definición de los pasos del formulario
 const pasos = [
   {
     id: "phone",
-    label: "Número de teléfono",
-    placeholder: "Ej: 04121234567",
+    label: "Número de Teléfono",
+    placeholder: "04121234567",
     type: "text",
   },
   {
     id: "name",
-    label: "Nombre completo",
-    placeholder: "Ej: Juan Pérez",
+    label: "Nombre Completo",
+    placeholder: "Ej. Juan Pérez",
     type: "text",
   },
-  { id: "birthdate", label: "Fecha de nacimiento", type: "date" },
+  { id: "birthdate", label: "Fecha de Nacimiento", type: "date" },
   {
     id: "gender",
     label: "Género",
@@ -53,7 +50,7 @@ const pasos = [
   },
   {
     id: "email",
-    label: "Correo electrónico",
+    label: "Correo Electrónico",
     placeholder: "tu@correo.com",
     type: "email",
   },
@@ -62,7 +59,7 @@ const pasos = [
 const FormClient = () => {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [returningUser, setReturningUser] = useState(null);
+  const [userName, setUserName] = useState("");
 
   const {
     register,
@@ -75,48 +72,41 @@ const FormClient = () => {
     mode: "onChange",
   });
 
-  // Función para codificar datos para Netlify Forms (Submissions tradicionales)
-  const encode = (data) => {
-    return Object.keys(data)
+  const encode = (data) =>
+    Object.keys(data)
       .map(
         (key) => encodeURIComponent(key) + "=" + encodeURIComponent(data[key]),
       )
       .join("&");
-  };
 
-  // Lógica para el botón "Siguiente" con consulta a la API
   const handleNext = async () => {
     const currentId = pasos[step].id;
     const isStepValid = await trigger(currentId);
 
     if (isStepValid) {
-      // SI ESTAMOS EN EL PASO DEL TELÉFONO, CONSULTAMOS LA API
       if (currentId === "phone") {
         setLoading(true);
-        const phoneValue = getValues("phone"); // <--- CORRECCIÓN: Extraemos el valor aquí
-
+        const phoneValue = getValues("phone");
         try {
           const res = await fetch("/.netlify/functions/check-user", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ phone: phoneValue }),
           });
-
           const data = await res.json();
-
           if (data.exists) {
-            setReturningUser(data.name);
-            setStep(pasos.length); // Salta directamente al final (Botón Conectar)
+            setUserName(data.name);
+            setStep(pasos.length);
           } else {
-            setStep((prev) => prev + 1); // Usuario nuevo, sigue el registro
+            setStep((prev) => prev + 1);
           }
         } catch (error) {
-          console.error("Error API:", error);
-          setStep((prev) => prev + 1); // Si la API falla, permitimos que siga el registro manual
+          setStep((prev) => prev + 1);
         } finally {
           setLoading(false);
         }
       } else {
+        // Guardamos el nombre conforme lo escriben para la pantalla final de nuevos usuarios
+        if (currentId === "name") setUserName(getValues("name"));
         setStep((prev) => prev + 1);
       }
     }
@@ -125,141 +115,178 @@ const FormClient = () => {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      // Solo enviamos el formulario completo a Netlify si es un usuario NUEVO
-      if (!returningUser) {
+      if (!userName || step < pasos.length) {
         await fetch("/", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: encode({ "form-name": "portal-cautivo", ...data }),
         });
       }
-
-      // Lógica final de conexión al router
-      alert("¡Registro exitoso! Conectando al WiFi...");
-      // window.location.href = "URL_DE_TU_MIKROTIK_LOGIN";
+      alert("Conectando al servicio WiFi...");
+      // Lógica de redirección al router aquí
     } catch (error) {
-      alert("Error al procesar la solicitud.");
+      alert("Error de red");
     } finally {
       setLoading(false);
     }
   };
 
   const currentField = pasos[step];
-  const progress = ((step + 1) / pasos.length) * 100;
+  const isLastStep = step >= pasos.length;
 
   return (
-    <Container className="mt-5" style={{ maxWidth: "450px" }}>
-      {step < pasos.length && (
-        <ProgressBar
-          now={progress}
-          variant="primary"
-          className="mb-4"
-          style={{ height: "8px" }}
-        />
-      )}
+    <Container className="d-flex align-items-center justify-content-center min-vh-100">
+      <style>{`
+        body {
+          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+          color: white;
+        }
+        .glass-card {
+          background: rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(15px);
+          -webkit-backdrop-filter: blur(15px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 24px;
+          color: white;
+        }
+        .form-control, .form-select {
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          color: white !important;
+          border-radius: 12px;
+          padding: 12px;
+        }
+        .form-control:focus, .form-select:focus {
+          background: rgba(255, 255, 255, 0.15);
+          border-color: #00d2ff;
+          box-shadow: 0 0 15px rgba(0, 210, 255, 0.3);
+        }
+        .form-control::placeholder { color: rgba(255, 255, 255, 0.4); }
+        .progress { background: rgba(255, 255, 255, 0.1); border-radius: 20px; }
+      `}</style>
 
-      <Card className="p-4 shadow border-0 rounded-4">
-        <Form
-          onSubmit={handleSubmit(onSubmit)}
-          name="portal-cautivo"
-          data-netlify="true"
-        >
-          {/* Requerido por Netlify */}
-          <input type="hidden" name="form-name" value="portal-cautivo" />
+      <div style={{ width: "100%", maxWidth: "420px" }}>
+        {!isLastStep && (
+          <ProgressBar
+            now={((step + 1) / pasos.length) * 100}
+            variant="info"
+            className="mb-4"
+          />
+        )}
 
-          {step < pasos.length ? (
-            <div key={currentField.id}>
-              <h5 className="mb-3 text-secondary text-uppercase small fw-bold">
-                Registro de Usuario
-              </h5>
-              <Form.Group>
-                <Form.Label>{currentField.label}</Form.Label>
+        <Card className="glass-card p-4 shadow-lg">
+          <Form
+            onSubmit={handleSubmit(onSubmit)}
+            name="portal-cautivo"
+            data-netlify="true"
+          >
+            <input type="hidden" name="form-name" value="portal-cautivo" />
 
-                {currentField.type === "select" ? (
-                  <Form.Select
-                    {...register(currentField.id)}
-                    isInvalid={!!errors[currentField.id]}
-                  >
-                    <option value="">Selecciona una opción...</option>
-                    {currentField.options.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
+            {!isLastStep ? (
+              <div key={currentField.id}>
+                <h4 className="mb-4 fw-light text-center">
+                  Registro de Invitado
+                </h4>
+                <Form.Group className="mb-3">
+                  <Form.Label className="small text-info text-uppercase fw-bold">
+                    {currentField.label}
+                  </Form.Label>
+                  {currentField.type === "select" ? (
+                    <Form.Select
+                      {...register(currentField.id)}
+                      isInvalid={!!errors[currentField.id]}
+                    >
+                      <option value="" className="bg-dark">
+                        Seleccionar...
                       </option>
-                    ))}
-                  </Form.Select>
-                ) : (
-                  <Form.Control
-                    {...register(currentField.id)}
-                    type={currentField.type}
-                    placeholder={currentField.placeholder || ""}
-                    isInvalid={!!errors[currentField.id]}
-                    autoFocus
-                  />
-                )}
-                <Form.Control.Feedback type="invalid">
-                  {errors[currentField.id]?.message}
-                </Form.Control.Feedback>
-              </Form.Group>
+                      {currentField.options.map((opt) => (
+                        <option key={opt} value={opt} className="bg-dark">
+                          {opt}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  ) : (
+                    <Form.Control
+                      {...register(currentField.id)}
+                      type={currentField.type}
+                      placeholder={currentField.placeholder}
+                      isInvalid={!!errors[currentField.id]}
+                      autoFocus
+                    />
+                  )}
+                  <Form.Control.Feedback
+                    type="invalid"
+                    className="text-warning"
+                  >
+                    {errors[currentField.id]?.message}
+                  </Form.Control.Feedback>
+                </Form.Group>
 
-              <div className="d-flex justify-content-between mt-4">
-                <Button
-                  variant="link"
-                  onClick={() => setStep(step - 1)}
-                  className={`text-decoration-none text-muted ${step === 0 ? "invisible" : ""}`}
-                >
-                  Anterior
-                </Button>
+                <div className="d-flex justify-content-between align-items-center mt-4">
+                  <Button
+                    variant="link"
+                    onClick={() => setStep(step - 1)}
+                    className={`text-white-50 p-0 text-decoration-none ${step === 0 ? "invisible" : ""}`}
+                  >
+                    ← Volver
+                  </Button>
+                  <Button
+                    variant="info"
+                    onClick={handleNext}
+                    disabled={loading}
+                    className="px-5 py-2 rounded-pill fw-bold text-white shadow"
+                  >
+                    {loading ? <Spinner size="sm" /> : "Siguiente"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <div className="mb-4">
+                  <span style={{ fontSize: "4rem" }}>🎯</span>
+                </div>
+                <h2 className="fw-bold mb-2">¡Todo listo, {userName}!</h2>
+                <p className="text-white-50 mb-4">
+                  Haz clic abajo para iniciar tu navegación segura.
+                </p>
+
                 <Button
                   variant="primary"
-                  onClick={handleNext}
+                  type="submit"
+                  size="lg"
+                  className="w-100 rounded-pill py-3 fw-bold shadow-lg border-0"
+                  style={{
+                    background:
+                      "linear-gradient(45deg, #00d2ff 0%, #3a7bd5 100%)",
+                  }}
                   disabled={loading}
-                  className="px-4"
                 >
-                  {loading ? <Spinner size="sm" /> : "Siguiente"}
+                  {loading ? (
+                    <Spinner animation="border" />
+                  ) : (
+                    "ACCEDER A INTERNET"
+                  )}
+                </Button>
+
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="mt-4 text-white-50 text-decoration-none"
+                  onClick={() => {
+                    setStep(0);
+                    setUserName("");
+                  }}
+                >
+                  ¿No eres tú? Cambiar datos
                 </Button>
               </div>
-            </div>
-          ) : (
-            // PANTALLA DE ÉXITO / BIENVENIDA
-            <div className="text-center py-3">
-              <div className="mb-3 display-6">✨</div>
-              <h3>
-                {returningUser ? `¡Hola, ${returningUser}!` : "¡Todo listo!"}
-              </h3>
-              <p className="text-muted">
-                {returningUser
-                  ? "Te hemos reconocido. Presiona abajo para activar tu acceso."
-                  : "Tus datos han sido registrados correctamente."}
-              </p>
-
-              <Button
-                variant="success"
-                type="submit"
-                size="lg"
-                className="w-100 mt-3 fw-bold"
-                disabled={loading}
-              >
-                {loading ? <Spinner animation="border" /> : "CONECTAR AHORA"}
-              </Button>
-
-              <Button
-                variant="link"
-                size="sm"
-                className="mt-3 text-muted text-decoration-none"
-                onClick={() => {
-                  setStep(0);
-                  setReturningUser(null);
-                }}
-              >
-                ¿No eres tú? Cambiar número
-              </Button>
-            </div>
-          )}
-        </Form>
-      </Card>
-      <p className="text-center mt-3 text-muted small">
-        Paso {step + 1} de {pasos.length}
-      </p>
+            )}
+          </Form>
+        </Card>
+        <p className="text-center mt-4 text-white-50 small opacity-50">
+          © 2026 Buddha Bar WiFi Service
+        </p>
+      </div>
     </Container>
   );
 };
