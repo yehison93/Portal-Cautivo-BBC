@@ -1,5 +1,5 @@
 // netlify/functions/verificar-cliente.js
-const fetch = require("node-fetch");
+// const fetch = require("node-fetch");
 
 exports.handler = async (event) => {
   // Solo permitimos el método POST
