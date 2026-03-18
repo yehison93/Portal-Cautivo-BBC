@@ -1,41 +1,45 @@
-// netlify/functions/verificar-cliente.js
-// const fetch = require("node-fetch");
+/* global process */
 
 exports.handler = async (event) => {
-  // Solo permitimos el método POST
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Método no permitido" };
+  // 1. Extraer variables del entorno (Configuradas en el panel de Netlify)
+  const TOKEN = process.env.NETLIFY_AUTH_TOKEN;
+  const SITE_ID = process.env.NETLIFY_SITE_ID;
+
+  if (!TOKEN || !SITE_ID) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Faltan variables de entorno en Netlify" }),
+    };
   }
 
-  const { phone } = JSON.parse(event.body);
-  const TOKEN =
-    "nfp_XisrTdMVm45YHUg8osPRLaeBQADxB7EG5d48" ||
-    process.env.NETLIFY_AUTH_TOKEN;
-  const SITE_ID =
-    "05c77944-04ee-457d-a4e0-65bb01699ed0" || process.env.NETLIFY_SITE_ID;
-
   try {
-    // 1. Pedimos a la API de Netlify todos los envíos (submissions) de este sitio
+    const { phone } = JSON.parse(event.body);
+
     const response = await fetch(
       `https://api.netlify.com/api/v1/sites/${SITE_ID}/submissions`,
       {
-        headers: { Authorization: `Bearer ${TOKEN}` },
+        headers: {
+          Authorization: `Bearer ${TOKEN}`,
+          "Content-Type": "application/json",
+        },
       },
     );
 
-    if (!response.ok)
-      throw new Error("Error al conectar con la API de Netlify");
-
     const submissions = await response.json();
 
-    // 2. Buscamos si el teléfono ya existe en la base de datos
-    const clienteEncontrado = submissions.find((s) => s.data.phone === phone);
+    // IMPORTANTE: Limpieza de datos para la comparación
+    const cleanIncomingPhone = String(phone).trim();
+
+    const user = submissions.find((s) => {
+      const phoneInDb = String(s.data.phone).trim();
+      return phoneInDb === cleanIncomingPhone;
+    });
 
     return {
       statusCode: 200,
       body: JSON.stringify({
-        existe: !!clienteEncontrado,
-        datos: clienteEncontrado ? clienteEncontrado.data : null,
+        exists: !!user,
+        name: user ? user.data.name : null,
       }),
     };
   } catch (error) {
