@@ -106,6 +106,7 @@ const FormClient = ({
         });
         const data = await res.json();
         if (data.exists) {
+          console.error(data.name);
           setUserName(data.name);
           handleConnect(10000, 10000, 10080);
         }
