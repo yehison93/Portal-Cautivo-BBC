@@ -85,6 +85,11 @@ const FormClient = () => {
     const isStepValid = await trigger(currentId);
 
     if (isStepValid) {
+      console.log("Teléfono buscado:", phone);
+      console.log(
+        "Total de registros encontrados en Netlify:",
+        submissions.length,
+      );
       if (currentId === "phone") {
         setLoading(true);
         try {
