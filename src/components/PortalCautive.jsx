@@ -101,18 +101,6 @@ const PortalCautive = ({
             alt="Logo Maremares"
           />
           <Card.Body>
-            <Card.Title>
-              <Stack direction="horizontal" className="justify-content-center">
-                <span className="palmeras" aria-label="Palmera">
-                  🌴
-                </span>
-                <h1>¡Bienvenido!</h1>
-                <span className="palmeras" aria-label="Palmera">
-                  🌴
-                </span>
-              </Stack>
-            </Card.Title>
-
             {/* Si existe la MAC mostramos los botones de conectar/navegar */}
             {macAddress ? (
               <>
@@ -124,6 +112,7 @@ const PortalCautive = ({
                   iosUrl={iosUrl}
                   clientLoading={loading}
                   connected={connected}
+                  macAddress={macAddress}
                 />
               </>
             ) : (

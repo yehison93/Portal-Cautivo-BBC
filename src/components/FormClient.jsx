@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,9 +9,11 @@ import {
   Card,
   ProgressBar,
   Image,
+  Stack,
 } from "react-bootstrap";
 import spinnerImg from "../assets/logoSpinner.png";
 
+// Schema y Pasos se mantienen igual...
 const schema = z.object({
   phone: z.string().min(8, "Número inválido").regex(/^\d+$/, "Solo números"),
   name: z.string().min(3, "Nombre muy corto"),
@@ -65,10 +67,12 @@ const FormClient = ({
   iosUrl,
   clientLoading,
   connected,
+  macAddress, // Nueva prop recibida
 }) => {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState("");
+  const [isAutoChecking, setIsAutoChecking] = useState(true); // Estado para la carga inicial por MAC
 
   const {
     register,
@@ -88,6 +92,32 @@ const FormClient = ({
       )
       .join("&");
 
+  // 1. Verificación inicial por MAC
+  useEffect(() => {
+    const checkMacSilently = async () => {
+      if (!macAddress) {
+        setIsAutoChecking(false);
+        return;
+      }
+      try {
+        const res = await fetch("/.netlify/functions/check-user", {
+          method: "POST",
+          body: JSON.stringify({ mac: macAddress }),
+        });
+        const data = await res.json();
+        if (data.exists) {
+          setUserName(data.name);
+          handleConnect(10000, 10000, 10080);
+        }
+      } catch (error) {
+        console.error("Error verificando MAC:", error);
+      } finally {
+        setIsAutoChecking(false);
+      }
+    };
+    checkMacSilently();
+  }, [macAddress, handleConnect]);
+
   const handleNext = async () => {
     const currentId = pasos[step].id;
     const isStepValid = await trigger(currentId);
@@ -98,7 +128,10 @@ const FormClient = ({
         try {
           const res = await fetch("/.netlify/functions/check-user", {
             method: "POST",
-            body: JSON.stringify({ phone: getValues("phone") }),
+            body: JSON.stringify({
+              phone: getValues("phone"),
+              mac: macAddress, // Enviamos la MAC para actualizar si el usuario existe
+            }),
           });
           const data = await res.json();
           if (data.exists) {
@@ -126,7 +159,12 @@ const FormClient = ({
         await fetch("/", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: encode({ "form-name": "portal-cautivo", ...data }),
+          // Incluimos la MAC en el registro de Netlify
+          body: encode({
+            "form-name": "portal-cautivo",
+            ...data,
+            mac: macAddress,
+          }),
         });
       }
       handleConnect(10000, 10000, 10080);
@@ -137,22 +175,26 @@ const FormClient = ({
     }
   };
 
-  const isAnyLoading = loading || clientLoading;
+  const isAnyLoading = loading || clientLoading || isAutoChecking;
   const currentField = pasos[step];
   const isLastStep = step >= pasos.length;
+
+  // Mostramos spinner centrado durante la verificación silenciosa inicial
+  if (isAutoChecking) {
+    return (
+      <Container
+        className="d-flex justify-content-center align-items-center"
+        style={{ minHeight: "300px" }}
+      >
+        <Image className="spinner" src={spinnerImg} />
+      </Container>
+    );
+  }
 
   return (
     <Container>
       <div style={{ width: "100%", maxWidth: "420px" }}>
         <Card className="glass-card p-4 shadow-lg border-0">
-          {!isLastStep && (
-            <ProgressBar
-              now={((step + 1) / pasos.length) * 100}
-              variant="info"
-              className="mb-4 progress-custom"
-            />
-          )}
-
           <Form
             onSubmit={handleSubmit(onSubmit)}
             name="portal-cautivo"
@@ -162,9 +204,18 @@ const FormClient = ({
 
             {!isLastStep ? (
               <div key={currentField.id}>
-                <h4 className="mb-4 fw-light text-center">
-                  Registro de Invitado
-                </h4>
+                <Card.Title className="mb-4 text-center">
+                  <Stack
+                    direction="horizontal"
+                    gap={2}
+                    className="justify-content-center align-items-center"
+                  >
+                    <span className="palmeras">🌴</span>
+                    <h1 className="mb-0 fw-light">¡Bienvenido!</h1>
+                    <span className="palmeras">🌴</span>
+                  </Stack>
+                </Card.Title>
+
                 <Form.Group className="mb-3">
                   <Form.Label className="small text-info text-uppercase fw-bold">
                     {currentField.label}
@@ -204,6 +255,13 @@ const FormClient = ({
                   </Form.Control.Feedback>
                 </Form.Group>
 
+                <ProgressBar
+                  now={((step + 1) / pasos.length) * 100}
+                  variant="info"
+                  className="mb-4 progress-custom"
+                  style={{ height: "6px" }}
+                />
+
                 <div className="d-flex justify-content-between align-items-center mt-4">
                   <Button
                     variant="link"
@@ -228,8 +286,8 @@ const FormClient = ({
                 </div>
               </div>
             ) : (
-              <div className="text-center py-4">
-                <div className="mb-4">
+              <div className="text-center">
+                <div className="mb-3">
                   <span style={{ fontSize: "4rem" }}>🎯</span>
                 </div>
                 <h2 className="fw-bold mb-2">¡Todo listo, {userName}!</h2>
@@ -240,7 +298,7 @@ const FormClient = ({
                   </div>
                 ) : (
                   !connected && (
-                    <>
+                    <div className="d-flex flex-column align-items-center">
                       <p className="text-white-50 mb-4">
                         Haz clic abajo para iniciar tu navegación segura.
                       </p>
@@ -248,12 +306,11 @@ const FormClient = ({
                         variant="primary"
                         type="submit"
                         size="lg"
-                        className="w-100 rounded-pill py-3 fw-bold shadow-lg border-0 btn-grad-blue"
+                        className="rounded-pill py-3 px-5 fw-bold shadow-lg border-0 btn-grad-blue"
                         disabled={isAnyLoading}
                       >
-                        ACCEDER A INTERNET
+                        CONECTAR
                       </Button>
-
                       <Button
                         variant="link"
                         size="sm"
@@ -265,11 +322,11 @@ const FormClient = ({
                       >
                         ¿No eres tú? Cambiar datos
                       </Button>
-                    </>
+                    </div>
                   )
                 )}
 
-                {connected && (
+                {connected && showInstagramBtn && (
                   <Button
                     className="w-100 rounded-pill py-3 fw-bold shadow-lg mt-3"
                     variant="light"
