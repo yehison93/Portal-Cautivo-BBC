@@ -9,7 +9,7 @@ exports.handler = async (event) => {
 
   const { phone } = JSON.parse(event.body);
   const TOKEN =
-    "nfp_XisrTdMVm45YHUg8osPRLaeBQADxB7EG5d48 " ||
+    "nfp_XisrTdMVm45YHUg8osPRLaeBQADxB7EG5d48" ||
     process.env.NETLIFY_AUTH_TOKEN;
   const SITE_ID =
     "05c77944-04ee-457d-a4e0-65bb01699ed0" || process.env.NETLIFY_SITE_ID;
