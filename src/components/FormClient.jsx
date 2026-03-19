@@ -172,20 +172,35 @@ const FormClient = ({
   // 3. Registro de nuevo usuario en Firebase
   const onSubmit = async (data) => {
     setLoading(true);
+    console.log("Iniciando envío a Firebase con estos datos:", data);
+
     try {
-      // Solo guardamos si es un usuario que no existía (userName vacío)
-      if (!userName || step < pasos.length) {
-        await addDoc(collection(db, "clientes"), {
-          ...data,
-          mac: macAddress,
-          createdAt: serverTimestamp(),
-          source: "Captive Portal",
-        });
-      }
-      // handleConnect(10000, 10000, 10080);
+      // 1. Intentar guardar en Firebase PRIMERO
+      const docRef = await addDoc(collection(db, "clientes"), {
+        ...data,
+        mac: macAddress || "MAC-NO-DETECTADA", // Un fallback para que no falle si macAddress es null
+        createdAt: serverTimestamp(),
+      });
+
+      console.log(
+        "✅ Registro exitoso en Firebase. ID del documento:",
+        docRef.id,
+      );
+      alert("¡Firebase guardó los datos con éxito!"); // <--- Agrega esto para confirmar
+
+      // 2. Intentar la conexión (Aquí es donde falla tu Render)
+      console.log("Intentando conectar con el servidor de Render...");
+      await handleConnect(10000, 10000, 10080);
     } catch (error) {
-      console.error("Error guardando en Firebase:", error);
-      alert("Error al procesar el registro.");
+      // Aquí atrapamos CUALQUIER error, ya sea de Firebase o de Render
+      console.error("❌ ERROR DETECTADO:", error);
+
+      // Si el error es de Firebase, suele tener un código
+      if (error.code) {
+        console.error("Código de error Firebase:", error.code);
+      }
+
+      alert("Ocurrió un error: " + error.message);
     } finally {
       setLoading(false);
     }
