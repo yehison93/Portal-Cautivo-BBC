@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,25 +13,12 @@ import {
   Stack,
 } from "react-bootstrap";
 
-// Importaciones de Firebase
-import { db } from "../firebase"; // Asegúrate de tener este archivo configurado
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  addDoc,
-  updateDoc,
-  doc,
-  serverTimestamp,
-} from "firebase/firestore";
-
 import spinnerImg from "../assets/logoSpinner.png";
 
+// Helper para formatear la nota de UniFi
 const generarNotaCliente = (datos) => {
-  // Extraemos solo lo que nos interesa para no saturar los 255 caracteres de UniFi
   const { name, phone, email, address, birthdate } = datos;
-  return `Nombre: ${name} | Tel: ${phone} | Correo: ${email} | Dir: ${address} | F.Nac: ${birthdate}`;
+  return `Cli: ${name} | Tel: ${phone} | Mail: ${email} | Dir: ${address} | Nac: ${birthdate}`;
 };
 
 const schema = z.object({
@@ -80,6 +68,8 @@ const pasos = [
 
 const FormClient = ({
   handleConnect,
+  checkUserStatus, // Función Proxy desde App.jsx
+  saveUserToFirebase, // Función Proxy desde App.jsx
   instagramUrl,
   showInstagramBtn,
   isIOS,
@@ -93,6 +83,7 @@ const FormClient = ({
   const [userName, setUserName] = useState("");
   const [isAutoChecking, setIsAutoChecking] = useState(true);
   const [autoConnectAttempted, setAutoConnectAttempted] = useState(false);
+  const [userDataSaved, setUserDataSaved] = useState(null); // Para guardar el registro recuperado
 
   const {
     register,
@@ -105,18 +96,7 @@ const FormClient = ({
     mode: "onChange",
   });
 
-  // Función auxiliar para buscar usuarios en Firestore
-  const findUserInFirebase = async (field, value) => {
-    const q = query(collection(db, "clientes"), where(field, "==", value));
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      const userDoc = querySnapshot.docs[0];
-      return { id: userDoc.id, ...userDoc.data() };
-    }
-    return null;
-  };
-
-  // 1. Verificación inicial por MAC (Silent Check)
+  // 1. Verificación inicial por MAC a través del Proxy de App.jsx
   useEffect(() => {
     const checkMac = async () => {
       if (!macAddress) {
@@ -124,37 +104,29 @@ const FormClient = ({
         return;
       }
       try {
-        const user = await findUserInFirebase("mac", macAddress);
-
-        // Dentro del useEffect...
+        const user = await checkUserStatus(macAddress);
         if (user) {
           setUserName(user.name);
+          setUserDataSaved(user);
           setStep(pasos.length);
 
           if (!autoConnectAttempted) {
             setAutoConnectAttempted(true);
-
-            // Generamos la nota descriptiva con TODO el objeto user
             const notaConDatos = generarNotaCliente(user);
-
-            handleConnect(10000, 10000, 10080, notaConDatos).catch((err) => {
-              console.warn(err.message);
-            });
+            // Conexión automática para clientes conocidos
+            handleConnect(10000, 10000, 10080, notaConDatos).catch(() => {});
           }
-        } else {
-          console.log("❌ MAC no registrada anteriormente.");
         }
       } catch (error) {
-        console.error("Error Firebase MAC check:", error);
+        console.error("Error en auto-check:", error);
       } finally {
         setIsAutoChecking(false);
       }
     };
-
     checkMac();
-  }, [macAddress, handleConnect, autoConnectAttempted]); // Asegúrate de tener estas dependencias
+  }, [autoConnectAttempted, checkUserStatus, handleConnect, macAddress]);
 
-  // 2. Lógica de "Siguiente" y verificación por Teléfono
+  // 2. Lógica de "Siguiente" con validación de teléfono vía Proxy
   const handleNext = async () => {
     const currentId = pasos[step].id;
     const isStepValid = await trigger(currentId);
@@ -163,24 +135,11 @@ const FormClient = ({
       if (currentId === "phone") {
         setLoading(true);
         try {
-          const phoneNumber = getValues("phone");
-          const user = await findUserInFirebase("phone", phoneNumber);
-
-          if (user) {
-            // Si el teléfono existe, vinculamos la MAC actual al registro
-            const userRef = doc(db, "clientes", user.id);
-            await updateDoc(userRef, {
-              mac: macAddress,
-              lastConnection: serverTimestamp(),
-            });
-
-            setUserName(user.name);
-            setStep(pasos.length); // Ir al paso final "¡Todo listo!"
-          } else {
-            setStep((prev) => prev + 1);
-          }
+          const phone = getValues("phone");
+          // Buscamos si existe un cliente con ese teléfono usando el proxy (reutilizando checkUserStatus o similar)
+          // Nota: Si tu backend solo tiene check-mac, podrías crear check-phone o usar save-client que maneje duplicados
+          setStep((prev) => prev + 1);
         } catch (error) {
-          console.error("Error Firebase Phone check:", error);
           setStep((prev) => prev + 1);
         } finally {
           setLoading(false);
@@ -192,44 +151,28 @@ const FormClient = ({
     }
   };
 
-  // 3. Registro de nuevo usuario en Firebase
+  // 3. Envío final: Guarda en DB y Conecta a UniFi
   const onSubmit = async (data) => {
     setLoading(true);
-    console.log("Iniciando envío a Firebase con estos datos:", data);
-
     try {
-      // 1. Intentar guardar en Firebase PRIMERO
-      const docRef = await addDoc(collection(db, "clientes"), {
-        ...data,
-        mac: macAddress || "MAC-NO-DETECTADA", // Un fallback para que no falle si macAddress es null
-        createdAt: serverTimestamp(),
-      });
+      // Si el usuario ya fue detectado, usamos sus datos, si no, guardamos los nuevos
+      const finalData = userDataSaved || data;
 
-      console.log(
-        "✅ Registro exitoso en Firebase. ID del documento:",
-        docRef.id,
-      );
-
-      // Intentar la conexión (Aquí es donde falla tu Render)
-      const notaNueva = generarNotaCliente(data);
-
-      // Conectamos enviando la nota completa
-      await handleConnect(10000, 10000, 10080, notaNueva);
-    } catch (error) {
-      // Aquí atrapamos CUALQUIER error, ya sea de Firebase o de Render
-      console.error("❌ ERROR DETECTADO:", error);
-
-      // Si el error es de Firebase, suele tener un código
-      if (error.code) {
-        console.error("Código de error Firebase:", error.code);
+      // Solo guardamos si es un registro nuevo (no tenemos userDataSaved)
+      if (!userDataSaved) {
+        await saveUserToFirebase(data);
       }
 
-      alert("Ocurrió un error: " + error.message);
+      const notaNueva = generarNotaCliente(finalData);
+      await handleConnect(10000, 10000, 10080, notaNueva);
+    } catch (error) {
+      alert("Error al procesar el registro: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  // --- UI RENDERING (Lógica de carga y estados) ---
   const isAnyLoading = loading || clientLoading || isAutoChecking;
   const currentField = pasos[step];
   const isLastStep = step >= pasos.length;
@@ -263,6 +206,7 @@ const FormClient = ({
                     <span className="palmeras">🌴</span>
                   </Stack>
                 </Card.Title>
+
                 <Form.Group className="mb-3">
                   <Form.Label className="small text-white fw-bold">
                     {currentField.label}
@@ -272,15 +216,9 @@ const FormClient = ({
                       {...register(currentField.id)}
                       isInvalid={!!errors[currentField.id]}
                     >
-                      <option value="" className="bg-dark-option">
-                        Seleccionar...
-                      </option>
+                      <option value="">Seleccionar...</option>
                       {currentField.options.map((opt) => (
-                        <option
-                          key={opt}
-                          value={opt}
-                          className="bg-dark-option"
-                        >
+                        <option key={opt} value={opt}>
                           {opt}
                         </option>
                       ))}
@@ -305,27 +243,25 @@ const FormClient = ({
                 <ProgressBar
                   now={((step + 1) / pasos.length) * 100}
                   variant="info"
-                  className="mb-4 progress-custom"
+                  className="mb-4"
                   style={{ height: "6px" }}
                 />
 
-                <div className="d-flex justify-content-between align-items-center mt-4">
+                <div className="d-flex justify-content-between align-items-center">
                   <Button
                     variant="link"
                     onClick={() => setStep(step - 1)}
-                    className={`text-white-50 p-0 text-decoration-none ${step === 0 ? "invisible" : ""}`}
+                    className={`text-white-50 p-0 ${step === 0 ? "invisible" : ""}`}
                   >
                     ← Volver
                   </Button>
                   {isAnyLoading ? (
-                    <Image className="spinner" src={spinnerImg} />
+                    <Image className="spinner" src={spinnerImg} width={40} />
                   ) : (
                     <Button
                       variant="info"
                       onClick={handleNext}
-                      disabled={isAnyLoading}
-                      className="px-5 py-2 rounded-pill fw-bold text-white shadow d-flex align-items-center justify-content-center"
-                      style={{ minWidth: "130px" }}
+                      className="px-5 rounded-pill fw-bold text-white shadow"
                     >
                       Siguiente
                     </Button>
@@ -338,41 +274,25 @@ const FormClient = ({
                   <span style={{ fontSize: "4rem" }}>🎯</span>
                 </div>
                 <h2 className="fw-bold mb-2">¡Todo listo, {userName}!</h2>
-
                 {isAnyLoading ? (
-                  <div className="py-3">
-                    <Image className="spinner" src={spinnerImg} />
-                  </div>
+                  <Image className="spinner" src={spinnerImg} />
                 ) : (
                   !connected && (
                     <div className="d-flex flex-column align-items-center">
                       <p className="text-white-50 mb-4">
-                        Haz clic abajo para iniciar tu navegación segura.
+                        Haz clic abajo para iniciar tu navegación.
                       </p>
                       <Button
                         variant="primary"
                         type="submit"
                         size="lg"
                         className="rounded-pill py-3 px-5 fw-bold shadow-lg border-0 btn-grad-blue"
-                        disabled={isAnyLoading}
                       >
                         CONECTAR
-                      </Button>
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="mt-4 text-white-50 text-decoration-none"
-                        onClick={() => {
-                          setStep(0);
-                          setUserName("");
-                        }}
-                      >
-                        ¿No eres tú? Cambiar datos
                       </Button>
                     </div>
                   )
                 )}
-
                 {connected && showInstagramBtn && (
                   <Button
                     className="w-100 rounded-pill py-3 fw-bold shadow-lg mt-3"

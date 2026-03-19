@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 // Componente principal que muestra la UI del portal cautivo.
 // - Recibe props como `macAddress`, `handleConnect`, `message`, `loading`,
 //   `connected` y URLs para navegar.
@@ -18,25 +19,17 @@ const images = import.meta.glob(
 );
 
 const PortalCautive = ({
-  // Props que viene desde `App.jsx`.
-  // eslint-disable-next-line react/prop-types
   macAddress,
-  // eslint-disable-next-line react/prop-types
   handleConnect,
-  // eslint-disable-next-line react/prop-types
   message,
-  // eslint-disable-next-line react/prop-types
   loading,
-  // eslint-disable-next-line react/prop-types
   connected,
-  // eslint-disable-next-line react/prop-types
   instagramUrl,
-  // eslint-disable-next-line react/prop-types
   showInstagramBtn,
-  // eslint-disable-next-line react/prop-types
   isIOS,
-  // eslint-disable-next-line react/prop-types
   iosUrl,
+  checkUserStatus,
+  saveUserToFirebase,
 }) => {
   // Contador local para detectar múltiples clicks en el logo.
   const [numItem, setNumItem] = useState(0);
@@ -113,6 +106,8 @@ const PortalCautive = ({
                   clientLoading={loading}
                   connected={connected}
                   macAddress={macAddress}
+                  checkUserStatus={checkUserStatus} // Pasamos la función de verificación
+                  saveUserToFirebase={saveUserToFirebase} // Pasamos la función de guardado
                 />
               </>
             ) : (
