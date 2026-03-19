@@ -120,7 +120,7 @@ const FormClient = ({
         const user = await findUserInFirebase("mac", macAddress);
         if (user) {
           setUserName(user.name);
-          handleConnect(10000, 10000, 10080);
+          // handleConnect(10000, 10000, 10080);
         }
       } catch (error) {
         console.error("Error Firebase MAC check:", error);
@@ -182,7 +182,7 @@ const FormClient = ({
           source: "Captive Portal",
         });
       }
-      handleConnect(10000, 10000, 10080);
+      // handleConnect(10000, 10000, 10080);
     } catch (error) {
       console.error("Error guardando en Firebase:", error);
       alert("Error al procesar el registro.");
