@@ -10,7 +10,7 @@ import "./App.css";
 // de seguridad. Idealmente deben moverse al backend o a variables de entorno
 // en el servidor.
 const UnifiData = {
-  url: "https://buddhabarbeachhotel.ddns.net:8443",
+  url: "https://hotelmaremares.duckdns.org:8443",
   siteID: "d41gke5t",
   userName: "API.Admin",
   pw: "123456BBH#",
