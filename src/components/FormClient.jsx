@@ -86,6 +86,7 @@ const FormClient = ({
   const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState("");
   const [isAutoChecking, setIsAutoChecking] = useState(true);
+  const [autoConnectAttempted, setAutoConnectAttempted] = useState(false);
 
   const {
     register,
@@ -120,14 +121,22 @@ const FormClient = ({
         const user = await findUserInFirebase("mac", macAddress);
 
         if (user) {
-          // 1. Guardamos el nombre para el saludo final
+          // 1. Siempre actualizamos el nombre y saltamos al final si existe el usuario
           setUserName(user.name);
-
-          // 2. IMPORTANTE: Saltamos todos los pasos del formulario
           setStep(pasos.length);
 
-          // 3. Ejecutamos la conexión automática
-          // handleConnect(10000, 10000, 10080);
+          // 2. Solo intentamos conectar si no lo hemos hecho ya en este ciclo de vida
+          if (!autoConnectAttempted) {
+            setAutoConnectAttempted(true);
+            console.log("Intentando conexión automática...");
+
+            // Agregamos un .catch para que el fallo de Render no rompa el flujo
+            handleConnect(10000, 10000, 10080).catch((err) => {
+              console.warn(
+                `Conexión automática fallida (Backend Render), esperando acción manual. ${err.message}`,
+              );
+            });
+          }
         } else {
           console.log("❌ MAC no registrada anteriormente.");
         }
@@ -139,7 +148,7 @@ const FormClient = ({
     };
 
     checkMac();
-  }, [macAddress, handleConnect]); // Asegúrate de tener estas dependencias
+  }, [macAddress, handleConnect, autoConnectAttempted]); // Asegúrate de tener estas dependencias
 
   // 2. Lógica de "Siguiente" y verificación por Teléfono
   const handleNext = async () => {
@@ -200,7 +209,7 @@ const FormClient = ({
 
       // 2. Intentar la conexión (Aquí es donde falla tu Render)
       console.log("Intentando conectar con el servidor de Render...");
-      // await handleConnect(10000, 10000, 10080);
+      await handleConnect(10000, 10000, 10080);
     } catch (error) {
       // Aquí atrapamos CUALQUIER error, ya sea de Firebase o de Render
       console.error("❌ ERROR DETECTADO:", error);
