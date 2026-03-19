@@ -112,6 +112,7 @@ const FormClient = ({
   // 1. Verificación inicial por MAC (Silent Check)
   useEffect(() => {
     console.log("MAC recibida para verificar:", macAddress);
+
     const checkMac = async () => {
       if (!macAddress) {
         setIsAutoChecking(false);
@@ -119,9 +120,20 @@ const FormClient = ({
       }
       try {
         const user = await findUserInFirebase("mac", macAddress);
+
         if (user) {
+          console.log("✅ Usuario encontrado por MAC:", user.name);
+
+          // 1. Guardamos el nombre para el saludo final
           setUserName(user.name);
-          // handleConnect(10000, 10000, 10080);
+
+          // 2. IMPORTANTE: Saltamos todos los pasos del formulario
+          setStep(pasos.length);
+
+          // 3. Ejecutamos la conexión automática
+          handleConnect(10000, 10000, 10080);
+        } else {
+          console.log("❌ MAC no registrada anteriormente.");
         }
       } catch (error) {
         console.error("Error Firebase MAC check:", error);
@@ -129,8 +141,9 @@ const FormClient = ({
         setIsAutoChecking(false);
       }
     };
+
     checkMac();
-  }, [macAddress, handleConnect]);
+  }, [macAddress, handleConnect]); // Asegúrate de tener estas dependencias
 
   // 2. Lógica de "Siguiente" y verificación por Teléfono
   const handleNext = async () => {
