@@ -122,8 +122,6 @@ const FormClient = ({
         const user = await findUserInFirebase("mac", macAddress);
 
         if (user) {
-          console.log("✅ Usuario encontrado por MAC:", user.name);
-
           // 1. Guardamos el nombre para el saludo final
           setUserName(user.name);
 
