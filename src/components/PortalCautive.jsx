@@ -4,7 +4,7 @@
 // - Carga imágenes de fondo de forma dinámica desde la carpeta
 //   `assets/Fotos_Maremares` y muestra un carrusel de sponsors y un footer.
 import "bootstrap/dist/css/bootstrap.min.css";
-import { Card, Container, Row, Button, Image, Stack } from "react-bootstrap";
+import { Card, Container, Row, Image } from "react-bootstrap";
 import { useState, useEffect } from "react";
 import Sponsors from "./Sponsors";
 import Footer from "./Footer";

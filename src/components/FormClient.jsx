@@ -209,7 +209,6 @@ const FormClient = ({
         "✅ Registro exitoso en Firebase. ID del documento:",
         docRef.id,
       );
-      alert("¡Firebase guardó los datos con éxito!"); // <--- Agrega esto para confirmar
 
       // Intentar la conexión (Aquí es donde falla tu Render)
       const notaNueva = generarNotaCliente(data);
