@@ -313,19 +313,19 @@ const FormClient = ({
                   >
                     ← Volver
                   </Button>
-                  <Button
-                    variant="info"
-                    onClick={handleNext}
-                    disabled={isAnyLoading}
-                    className="px-5 py-2 rounded-pill fw-bold text-white shadow d-flex align-items-center justify-content-center"
-                    style={{ minWidth: "130px" }}
-                  >
-                    {isAnyLoading ? (
-                      <Image className="spinner" src={spinnerImg} />
-                    ) : (
-                      "Siguiente"
-                    )}
-                  </Button>
+                  {isAnyLoading ? (
+                    <Image className="spinner" src={spinnerImg} />
+                  ) : (
+                    <Button
+                      variant="info"
+                      onClick={handleNext}
+                      disabled={isAnyLoading}
+                      className="px-5 py-2 rounded-pill fw-bold text-white shadow d-flex align-items-center justify-content-center"
+                      style={{ minWidth: "130px" }}
+                    >
+                      Siguiente
+                    </Button>
+                  )}
                 </div>
               </div>
             ) : (
