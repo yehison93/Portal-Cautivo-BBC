@@ -111,8 +111,6 @@ const FormClient = ({
 
   // 1. Verificación inicial por MAC (Silent Check)
   useEffect(() => {
-    console.log("MAC recibida para verificar:", macAddress);
-
     const checkMac = async () => {
       if (!macAddress) {
         setIsAutoChecking(false);
@@ -129,7 +127,7 @@ const FormClient = ({
           setStep(pasos.length);
 
           // 3. Ejecutamos la conexión automática
-          handleConnect(10000, 10000, 10080);
+          // handleConnect(10000, 10000, 10080);
         } else {
           console.log("❌ MAC no registrada anteriormente.");
         }
@@ -202,7 +200,7 @@ const FormClient = ({
 
       // 2. Intentar la conexión (Aquí es donde falla tu Render)
       console.log("Intentando conectar con el servidor de Render...");
-      await handleConnect(10000, 10000, 10080);
+      // await handleConnect(10000, 10000, 10080);
     } catch (error) {
       // Aquí atrapamos CUALQUIER error, ya sea de Firebase o de Render
       console.error("❌ ERROR DETECTADO:", error);
