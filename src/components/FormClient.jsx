@@ -111,6 +111,7 @@ const FormClient = ({
 
   // 1. Verificación inicial por MAC (Silent Check)
   useEffect(() => {
+    console.log("MAC recibida para verificar:", macAddress);
     const checkMac = async () => {
       if (!macAddress) {
         setIsAutoChecking(false);
