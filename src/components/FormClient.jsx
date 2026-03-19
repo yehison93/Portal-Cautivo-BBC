@@ -27,6 +27,12 @@ import {
 
 import spinnerImg from "../assets/logoSpinner.png";
 
+const generarNotaCliente = (datos) => {
+  // Extraemos solo lo que nos interesa para no saturar los 255 caracteres de UniFi
+  const { name, phone, email, address, birthdate } = datos;
+  return `Nombre: ${name} | Tel: ${phone} | Correo: ${email} | Dir: ${address} | F.Nac: ${birthdate}`;
+};
+
 const schema = z.object({
   phone: z.string().min(8, "Número inválido").regex(/^\d+$/, "Solo números"),
   name: z.string().min(3, "Nombre muy corto"),
@@ -120,21 +126,19 @@ const FormClient = ({
       try {
         const user = await findUserInFirebase("mac", macAddress);
 
+        // Dentro del useEffect...
         if (user) {
-          // 1. Siempre actualizamos el nombre y saltamos al final si existe el usuario
           setUserName(user.name);
           setStep(pasos.length);
 
-          // 2. Solo intentamos conectar si no lo hemos hecho ya en este ciclo de vida
           if (!autoConnectAttempted) {
             setAutoConnectAttempted(true);
-            console.log("Intentando conexión automática...");
 
-            // Agregamos un .catch para que el fallo de Render no rompa el flujo
-            handleConnect(10000, 10000, 10080).catch((err) => {
-              console.warn(
-                `Conexión automática fallida (Backend Render), esperando acción manual. ${err.message}`,
-              );
+            // Generamos la nota descriptiva con TODO el objeto user
+            const notaConDatos = generarNotaCliente(user);
+
+            handleConnect(10000, 10000, 10080, notaConDatos).catch((err) => {
+              console.warn(err.message);
             });
           }
         } else {
@@ -207,9 +211,11 @@ const FormClient = ({
       );
       alert("¡Firebase guardó los datos con éxito!"); // <--- Agrega esto para confirmar
 
-      // 2. Intentar la conexión (Aquí es donde falla tu Render)
-      console.log("Intentando conectar con el servidor de Render...");
-      await handleConnect(10000, 10000, 10080);
+      // Intentar la conexión (Aquí es donde falla tu Render)
+      const notaNueva = generarNotaCliente(data);
+
+      // Conectamos enviando la nota completa
+      await handleConnect(10000, 10000, 10080, notaNueva);
     } catch (error) {
       // Aquí atrapamos CUALQUIER error, ya sea de Firebase o de Render
       console.error("❌ ERROR DETECTADO:", error);

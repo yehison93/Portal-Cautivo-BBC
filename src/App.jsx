@@ -147,7 +147,7 @@ const App = () => {
     }
   };
 
-  const handleConnect = async (upBandWidth, downBandWidth, time) => {
+  const handleConnect = async (upBandWidth, downBandWidth, time, note) => {
     if (!macAddress) {
       setMessage("Dirección MAC no válida.");
       return;
