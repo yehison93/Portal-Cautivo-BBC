@@ -263,9 +263,8 @@ const FormClient = ({
                     <span className="palmeras">🌴</span>
                   </Stack>
                 </Card.Title>
-
                 <Form.Group className="mb-3">
-                  <Form.Label className="small text-info text-uppercase fw-bold">
+                  <Form.Label className="small text-white fw-bold">
                     {currentField.label}
                   </Form.Label>
                   {currentField.type === "select" ? (
