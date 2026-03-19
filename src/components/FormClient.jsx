@@ -15,6 +15,8 @@ import {
 
 import spinnerImg from "../assets/logoSpinner.png";
 
+const BACKEND_URL = "https://backend-portal-captive-bbh.onrender.com";
+
 // Helper para formatear la nota de UniFi
 const generarNotaCliente = (datos) => {
   const { name, phone, email, address, birthdate } = datos;
@@ -68,8 +70,8 @@ const pasos = [
 
 const FormClient = ({
   handleConnect,
-  checkUserStatus, // Función Proxy desde App.jsx
-  saveUserToFirebase, // Función Proxy desde App.jsx
+  checkUserStatus,
+  saveUserToFirebase,
   instagramUrl,
   showInstagramBtn,
   isIOS,
@@ -83,7 +85,7 @@ const FormClient = ({
   const [userName, setUserName] = useState("");
   const [isAutoChecking, setIsAutoChecking] = useState(true);
   const [autoConnectAttempted, setAutoConnectAttempted] = useState(false);
-  const [userDataSaved, setUserDataSaved] = useState(null); // Para guardar el registro recuperado
+  const [userDataSaved, setUserDataSaved] = useState(null);
 
   const {
     register,
@@ -96,7 +98,7 @@ const FormClient = ({
     mode: "onChange",
   });
 
-  // 1. Verificación inicial por MAC a través del Proxy de App.jsx
+  // 1. Verificación inicial por MAC
   useEffect(() => {
     const checkMac = async () => {
       if (!macAddress) {
@@ -108,17 +110,16 @@ const FormClient = ({
         if (user) {
           setUserName(user.name);
           setUserDataSaved(user);
-          setStep(pasos.length);
+          setStep(pasos.length); // Ir al final directamente
 
           if (!autoConnectAttempted) {
             setAutoConnectAttempted(true);
             const notaConDatos = generarNotaCliente(user);
-            // Conexión automática para clientes conocidos
             handleConnect(10000, 10000, 10080, notaConDatos).catch(() => {});
           }
         }
       } catch (error) {
-        console.error("Error en auto-check:", error);
+        console.error("Error en auto-check MAC:", error);
       } finally {
         setIsAutoChecking(false);
       }
@@ -126,7 +127,7 @@ const FormClient = ({
     checkMac();
   }, [autoConnectAttempted, checkUserStatus, handleConnect, macAddress]);
 
-  // 2. Lógica de "Siguiente" con validación de teléfono vía Proxy
+  // 2. Lógica de "Siguiente" con Rescate por Teléfono
   const handleNext = async () => {
     const currentId = pasos[step].id;
     const isStepValid = await trigger(currentId);
@@ -136,8 +137,20 @@ const FormClient = ({
         setLoading(true);
         try {
           const phone = getValues("phone");
-          // Buscamos si existe un cliente con ese teléfono usando el proxy (reutilizando checkUserStatus o similar)
-          // Nota: Si tu backend solo tiene check-mac, podrías crear check-phone o usar save-client que maneje duplicados
+          // Intentamos buscar si este teléfono ya existe (MAC nueva o cambiada)
+          const response = await fetch(`${BACKEND_URL}/check-phone/${phone}`);
+
+          if (response.ok) {
+            const user = await response.json();
+            if (user) {
+              // ¡Usuario rescatado! Saltamos el resto del formulario
+              setUserName(user.name);
+              setUserDataSaved(user);
+              setStep(pasos.length);
+              return;
+            }
+          }
+          // Si no existe el teléfono, seguimos al paso "Nombre"
           setStep((prev) => prev + 1);
         } catch (error) {
           setStep((prev) => prev + 1);
@@ -151,28 +164,25 @@ const FormClient = ({
     }
   };
 
-  // 3. Envío final: Guarda en DB y Conecta a UniFi
+  // 3. Envío final: Actualiza/Guarda y Conecta
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      // Si el usuario ya fue detectado, usamos sus datos, si no, guardamos los nuevos
+      // Usamos los datos rescatados (si existen) o los del formulario (si es nuevo)
       const finalData = userDataSaved || data;
 
-      // Solo guardamos si es un registro nuevo (no tenemos userDataSaved)
-      if (!userDataSaved) {
-        await saveUserToFirebase(data);
-      }
+      // Enviamos siempre la MAC actual para que el backend la actualice en el registro
+      await saveUserToFirebase({ ...finalData, mac: macAddress });
 
       const notaNueva = generarNotaCliente(finalData);
       await handleConnect(10000, 10000, 10080, notaNueva);
     } catch (error) {
-      alert("Error al procesar el registro: " + error.message);
+      alert("Error al procesar: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // --- UI RENDERING (Lógica de carga y estados) ---
   const isAnyLoading = loading || clientLoading || isAutoChecking;
   const currentField = pasos[step];
   const isLastStep = step >= pasos.length;
