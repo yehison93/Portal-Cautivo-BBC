@@ -212,8 +212,8 @@ const FormClient = ({
   }
 
   return (
-    <Container>
-      <div style={{ width: "100%", maxWidth: "420px" }}>
+    <Container className="d-flex justify-content-center align-items-center">
+      <div style={{ width: "90%", maxWidth: "420px" }}>
         <Card className="glass-card p-4 shadow-lg border-0">
           <Form onSubmit={handleSubmit(onSubmit)}>
             {!isLastStep ? (

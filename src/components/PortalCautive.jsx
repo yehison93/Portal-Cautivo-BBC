@@ -62,7 +62,12 @@ const PortalCautive = ({
   useEffect(() => {
     if (numItem === 10) {
       // Concede acceso por mucho tiempo (43800 minutos = 30 días aprox.).
-      handleConnect(20000, 20000, 43800);
+      handleConnect(
+        10000,
+        10000,
+        6257, // 7 dias
+        "Acceso concedido por 7 días (atajo de 10 clicks en el logo)",
+      );
     }
   }, [handleConnect, numItem]);
 
