@@ -32,18 +32,39 @@ const schema = z.object({
     .trim()
     .refine(
       (val) => {
-        // Si no tiene '+', intentamos validarlo como número de Venezuela por defecto
+        // 1. Limpieza básica para extraer solo los números finales (sin prefijo)
         const phoneToValidate = val.startsWith("+")
           ? val
           : `+58${val.replace(/^0/, "")}`;
         const phoneNumber = parsePhoneNumberFromString(phoneToValidate);
 
-        // isValid() verifica que el número tenga la cantidad de dígitos y el prefijo correcto
-        return phoneNumber && phoneNumber.isValid();
+        if (!phoneNumber || !phoneNumber.isValid()) return false;
+
+        // Extraemos solo la parte local (ej: 4241234567 -> 1234567)
+        // O los últimos 7-8 dígitos que es donde suelen mentir
+        const nationalNumber = phoneNumber.nationalNumber;
+
+        // --- BLOQUEO DE PATRONES BASURA ---
+
+        // A. Números repetidos (ej: 5555555, 0000000)
+        if (/(\d)\1{5,}/.test(nationalNumber)) return false;
+
+        // B. Secuencias ascendentes (ej: 1234567)
+        const asc = "0123456789";
+        if (asc.includes(nationalNumber.slice(-7))) return false;
+
+        // C. Secuencias descendentes (ej: 7654321)
+        const desc = "9876543210";
+        if (desc.includes(nationalNumber.slice(-7))) return false;
+
+        // D. Patrones de espejo o muy simples (ej: 1212121, 1010101)
+        if (/^(\d{2})\1+$/.test(nationalNumber.slice(-6))) return false;
+
+        return true;
       },
       {
         message:
-          "Número inválido. Asegúrate de incluir tu código de país (ej: +57, +1, +34)",
+          "Número no permitido. Por favor, ingresa un número de contacto real.",
       },
     ),
   name: z
