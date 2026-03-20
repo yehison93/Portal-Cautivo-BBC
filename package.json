@@ -14,11 +14,13 @@
     "axios": "^1.13.6",
     "bootstrap": "^5.3.8",
     "firebase": "^12.10.0",
+    "libphonenumber-js": "^1.12.40",
     "pnpm": "^10.32.1",
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.71.2",
+    "validator": "^13.15.26",
     "zod": "^4.3.6"
   },
   "devDependencies": {
