@@ -92,11 +92,26 @@ const FormClient = ({
     handleSubmit,
     trigger,
     getValues,
+    setValue, // Crucial para inyectar datos rescatados
     formState: { errors },
   } = useForm({
     resolver: zodResolver(schema),
     mode: "onChange",
   });
+
+  // Función para llenar el formulario y saltar al final
+  const rescatarUsuario = (user) => {
+    setUserName(user.name);
+    setUserDataSaved(user);
+    // Sincronizamos los valores con el estado del formulario
+    setValue("name", user.name);
+    setValue("email", user.email);
+    setValue("phone", user.phone);
+    setValue("address", user.address);
+    setValue("gender", user.gender);
+    setValue("birthdate", user.birthdate);
+    setStep(pasos.length); // Salto al paso final (CONECTAR)
+  };
 
   // 1. Verificación inicial por MAC
   useEffect(() => {
@@ -107,10 +122,8 @@ const FormClient = ({
       }
       try {
         const user = await checkUserStatus(macAddress);
-        if (user) {
-          setUserName(user.name);
-          setUserDataSaved(user);
-          setStep(pasos.length); // Ir al final directamente
+        if (user && user.name) {
+          rescatarUsuario(user);
 
           if (!autoConnectAttempted) {
             setAutoConnectAttempted(true);
@@ -125,7 +138,7 @@ const FormClient = ({
       }
     };
     checkMac();
-  }, [autoConnectAttempted, checkUserStatus, handleConnect, macAddress]);
+  }, [macAddress, checkUserStatus]);
 
   // 2. Lógica de "Siguiente" con Rescate por Teléfono
   const handleNext = async () => {
@@ -136,23 +149,23 @@ const FormClient = ({
       if (currentId === "phone") {
         setLoading(true);
         try {
-          const phone = getValues("phone");
-          // Intentamos buscar si este teléfono ya existe (MAC nueva o cambiada)
-          const response = await fetch(`${BACKEND_URL}/check-phone/${phone}`);
+          const phoneValue = getValues("phone");
+          const response = await fetch(
+            `${BACKEND_URL}/check-phone/${phoneValue}`,
+          );
 
           if (response.ok) {
             const user = await response.json();
-            if (user) {
-              // ¡Usuario rescatado! Saltamos el resto del formulario
-              setUserName(user.name);
-              setUserDataSaved(user);
-              setStep(pasos.length);
-              return;
+            // Verificamos que el objeto no esté vacío y tenga datos mínimos
+            if (user && user.name) {
+              rescatarUsuario(user);
+              return; // Detenemos aquí para que no ejecute el setStep + 1 de abajo
             }
           }
-          // Si no existe el teléfono, seguimos al paso "Nombre"
+          // Si no se encuentra el teléfono, continuamos normal
           setStep((prev) => prev + 1);
         } catch (error) {
+          console.error("Error buscando teléfono:", error);
           setStep((prev) => prev + 1);
         } finally {
           setLoading(false);
@@ -164,20 +177,20 @@ const FormClient = ({
     }
   };
 
-  // 3. Envío final: Actualiza/Guarda y Conecta
+  // 3. Envío final
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      // Usamos los datos rescatados (si existen) o los del formulario (si es nuevo)
+      // Priorizamos los datos rescatados (que ya incluyen la MAC vieja)
+      // pero le pasamos la MAC actual detectada en la URL.
       const finalData = userDataSaved || data;
 
-      // Enviamos siempre la MAC actual para que el backend la actualice en el registro
       await saveUserToFirebase({ ...finalData, mac: macAddress });
 
       const notaNueva = generarNotaCliente(finalData);
       await handleConnect(10000, 10000, 10080, notaNueva);
     } catch (error) {
-      alert("Error al procesar: " + error.message);
+      alert("Error al procesar el registro: " + error.message);
     } finally {
       setLoading(false);
     }
