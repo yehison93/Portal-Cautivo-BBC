@@ -24,6 +24,22 @@ const generarNotaCliente = (datos) => {
   const { name, phone, email, address, birthdate } = datos;
   return `Cli: ${name} | Tel: ${phone} | Mail: ${email} | Dir: ${address} | Nac: ${birthdate}`;
 };
+const isGarbageText = (text) => {
+  const t = text.toLowerCase().trim();
+
+  // 1. Bloqueo de 3 o más letras iguales seguidas (ej: "Juaaaaan" o "aaaaaa")
+  if (/([a-z])\1{2,}/.test(t)) return true;
+
+  // 2. Bloqueo de ráfagas de consonantes (Entropía alta)
+  // En español es casi imposible tener 5 consonantes seguidas (ej: "bcdfgh")
+  if (/[b-df-hj-np-tv-z]{5,}/.test(t)) return true;
+
+  // 3. Bloqueo de secuencias de teclado comunes
+  const keyboard = ["asdf", "sdfg", "dfgh", "ghjk", "jklñ", "qwerty", "zxcv"];
+  if (keyboard.some((seq) => t.includes(seq))) return true;
+
+  return false;
+};
 
 // --- ESQUEMA DE VALIDACIÓN ROBUSTO ---
 const schema = z.object({
@@ -70,11 +86,17 @@ const schema = z.object({
   name: z
     .string()
     .trim()
-    .min(6, "Nombre y apellido")
-    .regex(/^[a-zA-ZÀ-ÿ\s]+$/, "Solo letras")
-    .refine((v) => v.trim().split(/\s+/).length >= 2, {
-      message: "Falta apellido",
-    }),
+    .min(6, "Ingresa nombre y apellido completo")
+    .regex(/^[a-zA-ZÀ-ÿ\s]+$/, "El nombre solo puede contener letras")
+    .refine((val) => val.trim().split(/\s+/).length >= 2, "Falta tu apellido")
+    .refine((val) => !isGarbageText(val), "Por favor, ingresa un nombre real"),
+
+  address: z
+    .string()
+    .trim()
+    .min(10, "Dirección muy corta (especifica calle/ciudad)")
+    .refine((val) => !isGarbageText(val), "La dirección parece no ser válida"),
+
   birthdate: z.string().refine((date) => {
     const hoy = new Date();
     const cumple = new Date(date);
@@ -84,7 +106,6 @@ const schema = z.object({
     return edad >= 13 && edad <= 90;
   }, "Debes ser mayor de 13 años"),
   gender: z.enum(["Masculino", "Femenino", "Otro"]),
-  address: z.string().trim().min(10, "Dirección muy corta"),
 
   // ... dentro de tu schema de Zod ...
   email: z
