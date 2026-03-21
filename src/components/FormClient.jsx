@@ -14,9 +14,40 @@ import {
   Image,
   Stack,
   Modal,
+  Spinner,
 } from "react-bootstrap";
 
 import spinnerImg from "../assets/logoSpinner.png";
+
+// --- COMPONENTE DE REDIRECCIÓN (Interno o Importado) ---
+const SuccessRedirect = ({ url }) => {
+  useEffect(() => {
+    const meta = document.createElement("meta");
+    meta.httpEquiv = "refresh";
+    // 2 segundos de delay: tiempo vital para que el Controller de UniFi autorice la MAC
+    meta.content = `2; url=${url}`;
+    document.head.appendChild(meta);
+    return () => {
+      document.head.removeChild(meta);
+    };
+  }, [url]);
+
+  return (
+    <div className="text-center py-4 animate__animated animate__fadeIn">
+      <div style={{ fontSize: "4rem" }} className="mb-3">
+        🚀
+      </div>
+      <h3 className="fw-bold text-white">¡Acceso Autorizado!</h3>
+      <p className="text-white-50">Configurando tu conexión premium...</p>
+      <div className="d-flex flex-column align-items-center gap-3 mt-4">
+        <Spinner animation="border" variant="info" />
+        <span className="small text-info text-uppercase fw-bold">
+          Redirigiendo...
+        </span>
+      </div>
+    </div>
+  );
+};
 
 const BACKEND_URL = "https://backend-portal-captive-bbh.onrender.com";
 
@@ -24,79 +55,50 @@ const generarNotaCliente = (datos) => {
   const { name, phone, email, address, birthdate } = datos;
   return `Cli: ${name} | Tel: ${phone} | Mail: ${email} | Dir: ${address} | Nac: ${birthdate}`;
 };
+
 const isGarbageText = (text) => {
   const t = text.toLowerCase().trim();
-
-  // 1. Bloqueo de 3 o más letras iguales seguidas (ej: "Juaaaaan" o "aaaaaa")
   if (/([a-z])\1{2,}/.test(t)) return true;
-
-  // 2. Bloqueo de ráfagas de consonantes (Entropía alta)
-  // En español es casi imposible tener 5 consonantes seguidas (ej: "bcdfgh")
   if (/[b-df-hj-np-tv-z]{5,}/.test(t)) return true;
-
-  // 3. Bloqueo de secuencias de teclado comunes
   const keyboard = ["asdf", "sdfg", "dfgh", "ghjk", "jklñ", "qwerty", "zxcv"];
   if (keyboard.some((seq) => t.includes(seq))) return true;
-
   return false;
 };
 
-// --- ESQUEMA DE VALIDACIÓN ROBUSTO ---
+// --- ESQUEMA DE VALIDACIÓN ---
 const schema = z.object({
   phone: z
     .string()
     .trim()
     .refine(
       (val) => {
-        // 1. Limpieza básica para extraer solo los números finales (sin prefijo)
         const phoneToValidate = val.startsWith("+")
           ? val
           : `+58${val.replace(/^0/, "")}`;
         const phoneNumber = parsePhoneNumberFromString(phoneToValidate);
-
         if (!phoneNumber || !phoneNumber.isValid()) return false;
-
-        // Extraemos solo la parte local (ej: 4241234567 -> 1234567)
-        // O los últimos 7-8 dígitos que es donde suelen mentir
         const nationalNumber = phoneNumber.nationalNumber;
-
-        // --- BLOQUEO DE PATRONES BASURA ---
-
-        // A. Números repetidos (ej: 5555555, 0000000)
         if (/(\d)\1{5,}/.test(nationalNumber)) return false;
-
-        // B. Secuencias ascendentes (ej: 1234567)
-        const asc = "0123456789";
-        if (asc.includes(nationalNumber.slice(-7))) return false;
-
-        // C. Secuencias descendentes (ej: 7654321)
-        const desc = "9876543210";
-        if (desc.includes(nationalNumber.slice(-7))) return false;
-
-        // D. Patrones de espejo o muy simples (ej: 1212121, 1010101)
+        const sequences = ["0123456789", "9876543210"];
+        if (sequences.some((s) => s.includes(nationalNumber.slice(-7))))
+          return false;
         if (/^(\d{2})\1+$/.test(nationalNumber.slice(-6))) return false;
-
         return true;
       },
-      {
-        message:
-          "Número no permitido. Por favor, ingresa un número de contacto real.",
-      },
+      { message: "Número no permitido. Ingresa uno real." },
     ),
   name: z
     .string()
     .trim()
-    .min(6, "Ingresa nombre y apellido completo")
-    .regex(/^[a-zA-ZÀ-ÿ\s]+$/, "El nombre solo puede contener letras")
-    .refine((val) => val.trim().split(/\s+/).length >= 2, "Falta tu apellido")
-    .refine((val) => !isGarbageText(val), "Por favor, ingresa un nombre real"),
-
+    .min(6, "Nombre y apellido completo")
+    .regex(/^[a-zA-ZÀ-ÿ\s]+$/, "Solo letras")
+    .refine((val) => val.trim().split(/\s+/).length >= 2, "Falta apellido")
+    .refine((val) => !isGarbageText(val), "Ingresa un nombre real"),
   address: z
     .string()
     .trim()
-    .min(4, "Dirección muy corta (especifica calle/ciudad)")
-    .refine((val) => !isGarbageText(val), "La dirección parece no ser válida"),
-
+    .min(4, "Dirección muy corta")
+    .refine((val) => !isGarbageText(val), "Dirección inválida"),
   birthdate: z.string().refine((date) => {
     const hoy = new Date();
     const cumple = new Date(date);
@@ -106,53 +108,29 @@ const schema = z.object({
     return edad >= 13 && edad <= 90;
   }, "Debes ser mayor de 13 años"),
   gender: z.enum(["Masculino", "Femenino", "Otro"]),
-
-  // ... dentro de tu schema de Zod ...
   email: z
     .string()
     .trim()
     .toLowerCase()
-    .refine(
-      (val) => isEmail(val, { require_tld: true }),
-      "Correo electrónico inválido",
-    )
+    .refine((val) => isEmail(val, { require_tld: true }), "Correo inválido")
     .refine(
       (val) => {
         const [user, domain] = val.split("@");
-
-        // 1. Bloqueo de dominios de prueba o obvios
-        const blacklistedDomains = [
+        const blacklisted = [
           "test.com",
           "example.com",
           "abc.com",
           "mail.com",
           "asdf.com",
           "ghj.com",
-        ];
-        if (blacklistedDomains.includes(domain)) return false;
-
-        // 2. Bloqueo de correos temporales conocidos (Yopmail, etc.)
-        const tempDomains = [
           "yopmail.com",
           "mailinator.com",
-          "guerrillamail.com",
-          "10minutemail.com",
         ];
-        if (tempDomains.includes(domain)) return false;
-
-        // 3. Filtro de "Teclazo Aleatorio" (Entropy Check)
-        // Si el usuario tiene 4 o más consonantes seguidas, probablemente es basura
-        const randomPattern = /[^aeiou]{5,}/i;
-        if (randomPattern.test(user)) return false;
-
-        // 4. Longitud mínima del dominio (evita d.c o similares)
-        if (domain.split(".")[0].length < 2) return false;
-
-        return true;
+        if (blacklisted.includes(domain)) return false;
+        if (/[^aeiou]{5,}/i.test(user)) return false;
+        return domain.split(".")[0].length >= 2;
       },
-      {
-        message: "Por favor, ingresa un correo electrónico real y verificable.",
-      },
+      { message: "Ingresa un correo real." },
     ),
 });
 
@@ -197,7 +175,6 @@ const FormClient = ({
   checkUserStatus,
   saveUserToFirebase,
   instagramUrl,
-  showInstagramBtn,
   isIOS,
   iosUrl,
   clientLoading,
@@ -210,8 +187,6 @@ const FormClient = ({
   const [isAutoChecking, setIsAutoChecking] = useState(true);
   const [autoConnectAttempted, setAutoConnectAttempted] = useState(false);
   const [userDataSaved, setUserDataSaved] = useState(null);
-
-  // Estado para la Alerta de Bienvenida
   const [showWelcomeAlert, setShowWelcomeAlert] = useState(false);
 
   const {
@@ -229,12 +204,7 @@ const FormClient = ({
   const rescatarUsuario = (user) => {
     setUserName(user.name);
     setUserDataSaved(user);
-    setValue("name", user.name);
-    setValue("email", user.email);
-    setValue("phone", user.phone);
-    setValue("address", user.address);
-    setValue("gender", user.gender);
-    setValue("birthdate", user.birthdate);
+    Object.keys(user).forEach((key) => setValue(key, user[key]));
     setStep(pasos.length);
   };
 
@@ -250,11 +220,12 @@ const FormClient = ({
           rescatarUsuario(user);
           if (!autoConnectAttempted) {
             setAutoConnectAttempted(true);
-            const notaConDatos = generarNotaCliente(user);
-            handleConnect(10000, 10000, 10080, notaConDatos).catch(() => {});
+            handleConnect(10000, 10000, 10080, generarNotaCliente(user)).catch(
+              () => {},
+            );
           }
         } else {
-          setShowWelcomeAlert(true); // Activar bienvenida si es usuario nuevo
+          setShowWelcomeAlert(true);
         }
       } catch (error) {
         setShowWelcomeAlert(true);
@@ -267,24 +238,22 @@ const FormClient = ({
 
   const handleNext = async () => {
     const currentId = pasos[step].id;
-    const isStepValid = await trigger(currentId);
-    if (isStepValid) {
+    if (await trigger(currentId)) {
       if (currentId === "phone") {
         setLoading(true);
         try {
-          const phoneValue = getValues("phone");
-          const response = await fetch(
-            `${BACKEND_URL}/check-phone/${phoneValue}`,
+          const res = await fetch(
+            `${BACKEND_URL}/check-phone/${getValues("phone")}`,
           );
-          if (response.ok) {
-            const user = await response.json();
+          if (res.ok) {
+            const user = await res.json();
             if (user && user.name) {
               rescatarUsuario(user);
               return;
             }
           }
           setStep((prev) => prev + 1);
-        } catch (error) {
+        } catch {
           setStep((prev) => prev + 1);
         } finally {
           setLoading(false);
@@ -310,6 +279,7 @@ const FormClient = ({
   };
 
   const isAnyLoading = loading || clientLoading || isAutoChecking;
+
   if (isAutoChecking)
     return (
       <Container
@@ -322,53 +292,26 @@ const FormClient = ({
 
   return (
     <Container className="d-flex justify-content-center align-items-center">
-      {/* ALERTA MODAL DE BIENVENIDA */}
       <Modal
         show={showWelcomeAlert}
         onHide={() => setShowWelcomeAlert(false)}
         centered
-        backdrop="static" // Obliga a leer o cerrar manualmente
+        backdrop="static"
         contentClassName="glass-card border-0 text-white overflow-hidden"
       >
-        <div
-          style={{
-            background: "linear-gradient(45deg, #0dcaf033, transparent)",
-            height: "5px",
-          }}
-        />
         <Modal.Body className="p-4 text-center">
           <div style={{ fontSize: "3.5rem" }} className="mb-2">
             ✨
           </div>
           <h3 className="fw-bold text-white mb-3">¡Qué gusto tenerte aquí!</h3>
-
-          <p className="text-white-50 mb-4" style={{ fontSize: "1.05rem" }}>
-            Para disfrutar de una conexión premium y{" "}
-            <strong>activar tu acceso automático</strong> en futuras visitas,
-            por favor completa tu perfil con datos reales.
+          <p className="text-white-50 mb-4">
+            Completa tu perfil para activar tu acceso automático en futuras
+            visitas.
           </p>
-
-          <div
-            className="p-3 mb-4 rounded-3"
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-            }}
-          >
-            <small className="text-info d-block fw-bold mb-1">
-              BENEFICIO EXCLUSIVO
-            </small>
-            <span className="small text-white-50">
-              Si tus datos son correctos, el sistema te reconocerá al instante
-              la próxima vez que nos visites.
-            </span>
-          </div>
-
           <Button
             variant="info"
             className="w-100 rounded-pill fw-bold text-white py-3 shadow-lg border-0"
             onClick={() => setShowWelcomeAlert(false)}
-            style={{ letterSpacing: "1px" }}
           >
             COMENZAR REGISTRO
           </Button>
@@ -387,11 +330,10 @@ const FormClient = ({
                     className="justify-content-center align-items-center"
                   >
                     <span className="palmeras">🌴</span>
-                    <h1 className="mb-0 fw-light">Registro</h1>
+                    <h1 className="mb-0 fw-light text-uppercase">Registro</h1>
                     <span className="palmeras">🌴</span>
                   </Stack>
                 </Card.Title>
-
                 <Form.Group className="mb-3">
                   <Form.Label className="small text-white fw-bold">
                     {pasos[step].label}
@@ -414,8 +356,8 @@ const FormClient = ({
                       type={pasos[step].type}
                       placeholder={pasos[step].placeholder}
                       isInvalid={!!errors[pasos[step].id]}
-                      inputMode={pasos[step].inputMode || "text"}
-                      autoCapitalize={pasos[step].autoCapitalize || "none"}
+                      inputMode={pasos[step].inputMode}
+                      autoCapitalize={pasos[step].autoCapitalize}
                       autoFocus
                     />
                   )}
@@ -426,14 +368,12 @@ const FormClient = ({
                     {errors[pasos[step].id]?.message}
                   </Form.Control.Feedback>
                 </Form.Group>
-
                 <ProgressBar
                   now={((step + 1) / pasos.length) * 100}
                   variant="info"
                   className="mb-4"
                   style={{ height: "6px" }}
                 />
-
                 <div className="d-flex justify-content-between align-items-center">
                   <Button
                     variant="link"
@@ -457,13 +397,16 @@ const FormClient = ({
               </div>
             ) : (
               <div className="text-center">
-                <div className="mb-3">
-                  <span style={{ fontSize: "4rem" }}>🎯</span>
-                </div>
-                <h2 className="fw-bold mb-2">¡Todo listo, {userName}!</h2>
-                {!connected && (
-                  <div className="d-flex flex-column align-items-center mt-4">
-                    <p className="text-white-50 mb-4 text-center">
+                {connected ? (
+                  /* --- AQUÍ SE DISPARA LA REDIRECCIÓN AUTOMÁTICA --- */
+                  <SuccessRedirect url={isIOS ? iosUrl : instagramUrl} />
+                ) : (
+                  <>
+                    <div className="mb-3">
+                      <span style={{ fontSize: "4rem" }}>🎯</span>
+                    </div>
+                    <h2 className="fw-bold mb-2">¡Todo listo, {userName}!</h2>
+                    <p className="text-white-50 mb-4">
                       Haz clic abajo para iniciar tu navegación.
                     </p>
                     <Button
@@ -471,19 +414,11 @@ const FormClient = ({
                       type="submit"
                       size="lg"
                       className="rounded-pill py-3 px-5 fw-bold shadow-lg border-0 btn-grad-blue"
+                      disabled={isAnyLoading}
                     >
-                      CONECTAR
+                      {isAnyLoading ? "CONECTANDO..." : "CONECTAR"}
                     </Button>
-                  </div>
-                )}
-                {connected && showInstagramBtn && (
-                  <Button
-                    className="w-100 rounded-pill py-3 fw-bold shadow-lg mt-3"
-                    variant="light"
-                    href={isIOS ? iosUrl : instagramUrl}
-                  >
-                    NAVEGAR AHORA
-                  </Button>
+                  </>
                 )}
               </div>
             )}
