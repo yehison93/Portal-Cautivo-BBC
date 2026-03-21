@@ -14,7 +14,6 @@ import {
   Image,
   Stack,
   Modal,
-  Spinner,
 } from "react-bootstrap";
 
 import spinnerImg from "../assets/logoSpinner.png";
@@ -40,7 +39,7 @@ const SuccessRedirect = ({ url }) => {
       <h3 className="fw-bold text-white">¡Acceso Autorizado!</h3>
       <p className="text-white-50">Configurando tu conexión premium...</p>
       <div className="d-flex flex-column align-items-center gap-3 mt-4">
-        <Spinner animation="border" variant="info" />
+        <Image className="spinner" src={spinnerImg} width={40} />
         <span className="small text-info text-uppercase fw-bold">
           Redirigiendo...
         </span>
@@ -431,7 +430,7 @@ const FormClient = ({
               <div className="text-center">
                 {connected ? (
                   /* --- AQUÍ SE DISPARA LA REDIRECCIÓN AUTOMÁTICA --- */
-                  <SuccessRedirect url={instagramUrl} />
+                  <SuccessRedirect url={isIOS ? iosUrl : instagramUrl} />
                 ) : (
                   <>
                     <div className="mb-3">
