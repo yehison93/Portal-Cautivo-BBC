@@ -8,8 +8,8 @@ const Footer = () => {
     <footer className="container-footer ">
       <p className="text-center mt-4 text-white-50 small opacity-50">
         &copy; {currentYear}{" "}
-        <strong className="text-warning">Buddha Bar WiFi Service</strong>. Todos
-        los derechos reservados.
+        <strong className="text-info">Hotel Maremares</strong>. Todos los
+        derechos reservados.
       </p>
     </footer>
   );
