@@ -296,22 +296,54 @@ const FormClient = ({
         show={showWelcomeAlert}
         onHide={() => setShowWelcomeAlert(false)}
         centered
-        backdrop="static"
+        backdrop="static" // Obliga a leer o cerrar manualmente
         contentClassName="glass-card border-0 text-white overflow-hidden"
       >
+        <div
+          style={{
+            background: "linear-gradient(45deg, #0dcaf033, transparent)",
+
+            height: "5px",
+          }}
+        />
+
         <Modal.Body className="p-4 text-center">
           <div style={{ fontSize: "3.5rem" }} className="mb-2">
             ✨
           </div>
+
           <h3 className="fw-bold text-white mb-3">¡Qué gusto tenerte aquí!</h3>
-          <p className="text-white-50 mb-4">
-            Completa tu perfil para activar tu acceso automático en futuras
-            visitas.
+
+          <p className="text-white-50 mb-4" style={{ fontSize: "1.05rem" }}>
+            Para disfrutar de una conexión premium y{" "}
+            <strong className="text-info">activar tu acceso automático</strong>{" "}
+            en futuras visitas, por favor completa tu perfil con{" "}
+            <strong className="text-info">datos reales</strong>.
           </p>
+
+          <div
+            className="p-3 mb-4 rounded-3"
+            style={{
+              background: "rgba(255,255,255,0.05)",
+
+              border: "1px solid rgba(255,255,255,0.1)",
+            }}
+          >
+            <small className="text-info d-block fw-bold mb-1 text-uppercase text-decoration-underline">
+              BENEFICIO EXCLUSIVO
+            </small>
+
+            <span className="small text-white-50">
+              Si tus datos son correctos, el sistema te reconocerá al instante
+              la próxima vez que nos visites.
+            </span>
+          </div>
+
           <Button
             variant="info"
             className="w-100 rounded-pill fw-bold text-white py-3 shadow-lg border-0"
             onClick={() => setShowWelcomeAlert(false)}
+            style={{ letterSpacing: "1px" }}
           >
             COMENZAR REGISTRO
           </Button>
@@ -399,7 +431,7 @@ const FormClient = ({
               <div className="text-center">
                 {connected ? (
                   /* --- AQUÍ SE DISPARA LA REDIRECCIÓN AUTOMÁTICA --- */
-                  <SuccessRedirect url={isIOS ? iosUrl : instagramUrl} />
+                  <SuccessRedirect url={instagramUrl} />
                 ) : (
                   <>
                     <div className="mb-3">
