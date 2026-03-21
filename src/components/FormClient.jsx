@@ -94,7 +94,7 @@ const schema = z.object({
   address: z
     .string()
     .trim()
-    .min(10, "Dirección muy corta (especifica calle/ciudad)")
+    .min(4, "Dirección muy corta (especifica calle/ciudad)")
     .refine((val) => !isGarbageText(val), "La dirección parece no ser válida"),
 
   birthdate: z.string().refine((date) => {
