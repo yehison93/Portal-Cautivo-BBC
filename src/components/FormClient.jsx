@@ -23,8 +23,8 @@ const SuccessRedirect = ({ url }) => {
   useEffect(() => {
     const meta = document.createElement("meta");
     meta.httpEquiv = "refresh";
-    // 2 segundos de delay: tiempo vital para que el Controller de UniFi autorice la MAC
-    meta.content = `2; url=${url}`;
+    // 5 segundos de delay: tiempo vital para que el Controller de UniFi autorice la MAC
+    meta.content = `5; url=${url}`;
     document.head.appendChild(meta);
     return () => {
       document.head.removeChild(meta);
