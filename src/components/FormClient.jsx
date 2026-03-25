@@ -115,18 +115,22 @@ const schema = z.object({
     .refine(
       (val) => {
         const [user, domain] = val.split("@");
+
+        // Redujimos la lista negra solo a correos temporales o de prueba evidentes
         const blacklisted = [
           "test.com",
           "example.com",
-          "abc.com",
-          "mail.com",
-          "asdf.com",
-          "ghj.com",
           "yopmail.com",
           "mailinator.com",
+          "10minutemail.com",
         ];
+
         if (blacklisted.includes(domain)) return false;
-        if (/[^aeiou]{5,}/i.test(user)) return false;
+
+        // Validación suave de "teclazo" en lugar de bloquear por falta de vocales
+        const keyboard = ["asdfgh", "qwerty", "zxcvbn"];
+        if (keyboard.some((seq) => user.includes(seq))) return false;
+
         return domain.split(".")[0].length >= 2;
       },
       { message: "Ingresa un correo real." },
