@@ -124,7 +124,7 @@ const schema = z.object({
   address: z
     .string()
     .trim()
-    .min(4, "Dirección muy corta")
+    .min(7, "Dirección muy corta")
     .refine((val) => !isGarbageText(val), "Dirección inválida"),
   birthdate: z.string().refine((date) => {
     const hoy = new Date();
@@ -133,7 +133,7 @@ const schema = z.object({
     const m = hoy.getMonth() - cumple.getMonth();
     if (m < 0 || (m === 0 && hoy.getDate() < cumple.getDate())) edad--;
     return edad >= 13 && edad <= 90;
-  }, "Debes ser mayor de 13 años"),
+  }, "Si eres menor de 13 años de edad, por favor pide a un adulto que te ayude a completar el registro."),
   gender: z.enum(["Masculino", "Femenino", "Otro"]),
   email: z
     .string()
