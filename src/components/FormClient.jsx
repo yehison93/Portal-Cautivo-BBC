@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import { useState, useEffect } from "react";
-import { useForm, useWatch } from "react-hook-form"; // Añadimos useWatch
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import isEmail from "validator/lib/isEmail";
@@ -18,7 +18,37 @@ import {
 
 import spinnerImg from "../assets/logoSpinner.png";
 
-// --- COMPONENTE DE REDIRECCIÓN ---
+// --- ESTILOS PARA CORREGIR SELECTS EN WINDOWS ---
+const selectStyle = {
+  backgroundColor: "#1a1d20", // Fondo oscuro sólido para evitar problemas de contraste
+  color: "#ffffff",
+  border: "1px solid rgba(255, 255, 255, 0.2)",
+  appearance: "none",
+};
+
+// --- HELPERS PARA LA FECHA ---
+const days = Array.from({ length: 31 }, (_, i) =>
+  (i + 1).toString().padStart(2, "0"),
+);
+const months = [
+  { v: "01", n: "Enero" },
+  { v: "02", n: "Febrero" },
+  { v: "03", n: "Marzo" },
+  { v: "04", n: "Abril" },
+  { v: "05", n: "Mayo" },
+  { v: "06", n: "Junio" },
+  { v: "07", n: "Julio" },
+  { v: "08", n: "Agosto" },
+  { v: "09", n: "Septiembre" },
+  { v: "10", n: "Octubre" },
+  { v: "11", n: "Noviembre" },
+  { v: "12", n: "Diciembre" },
+];
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 80 }, (_, i) =>
+  (currentYear - 13 - i).toString(),
+);
+
 const SuccessRedirect = ({ url }) => {
   useEffect(() => {
     const meta = document.createElement("meta");
@@ -63,7 +93,6 @@ const isGarbageText = (text) => {
   return false;
 };
 
-// --- ESQUEMA DE VALIDACIÓN ---
 const schema = z.object({
   phone: z
     .string()
@@ -145,7 +174,7 @@ const pasos = [
     type: "text",
     autoCapitalize: "words",
   },
-  { id: "birthdate", label: "Fecha de Nacimiento", type: "custom-birthdate" },
+  { id: "birthdate", label: "Fecha de Nacimiento", type: "date" },
   {
     id: "gender",
     label: "Género",
@@ -185,38 +214,20 @@ const FormClient = ({
   const [userDataSaved, setUserDataSaved] = useState(null);
   const [showWelcomeAlert, setShowWelcomeAlert] = useState(false);
 
-  const [tempAge, setTempAge] = useState("");
-
   const {
     register,
     handleSubmit,
     trigger,
     getValues,
     setValue,
-    control,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(schema),
     mode: "onChange",
   });
 
-  // Observamos el valor de la fecha para la retroalimentación automática
-  const birthdateValue = useWatch({ control, name: "birthdate" });
-
-  // EFECTO: Si la fecha cambia (vía calendario), actualizamos la edad visualmente
-  useEffect(() => {
-    if (birthdateValue) {
-      const hoy = new Date();
-      const cumple = new Date(birthdateValue);
-      let edad = hoy.getFullYear() - cumple.getFullYear();
-      const m = hoy.getMonth() - cumple.getMonth();
-      if (m < 0 || (m === 0 && hoy.getDate() < cumple.getDate())) edad--;
-
-      if (edad >= 0 && edad <= 99) {
-        setTempAge(edad.toString());
-      }
-    }
-  }, [birthdateValue]);
+  const birthdateValue = watch("birthdate") || "";
 
   const rescatarUsuario = (user) => {
     setUserName(user.name);
@@ -313,41 +324,49 @@ const FormClient = ({
         show={showWelcomeAlert}
         onHide={() => setShowWelcomeAlert(false)}
         centered
-        backdrop="static"
+        backdrop="static" // Obliga a leer o cerrar manualmente
         contentClassName="glass-card border-0 text-white overflow-hidden"
       >
         <div
           style={{
             background: "linear-gradient(45deg, #0dcaf033, transparent)",
+
             height: "5px",
           }}
         />
+
         <Modal.Body className="p-4 text-center">
           <div style={{ fontSize: "3.5rem" }} className="mb-2">
             ✨
           </div>
+
           <h3 className="fw-bold text-white mb-3">¡Qué gusto tenerte aquí!</h3>
+
           <p className="text-white-50 mb-4" style={{ fontSize: "1.05rem" }}>
             Para disfrutar de una conexión premium y{" "}
             <strong className="text-info">activar tu acceso automático</strong>{" "}
             en futuras visitas, por favor completa tu perfil con{" "}
             <strong className="text-info">datos reales</strong>.
           </p>
+
           <div
             className="p-3 mb-4 rounded-3"
             style={{
               background: "rgba(255,255,255,0.05)",
+
               border: "1px solid rgba(255,255,255,0.1)",
             }}
           >
             <small className="text-info d-block fw-bold mb-1 text-uppercase text-decoration-underline">
               BENEFICIO EXCLUSIVO
             </small>
+
             <span className="small text-white-50">
               Si tus datos son correctos, el sistema te reconocerá al instante
               la próxima vez que nos visites.
             </span>
           </div>
+
           <Button
             variant="info"
             className="w-100 rounded-pill fw-bold text-white py-3 shadow-lg border-0"
@@ -375,91 +394,107 @@ const FormClient = ({
                     <span className="palmeras">🌴</span>
                   </Stack>
                 </Card.Title>
-
                 <Form.Group className="mb-3">
-                  {pasos[step].type !== "custom-birthdate" && (
-                    <Form.Label className="small text-white fw-bold">
-                      {pasos[step].label}
-                    </Form.Label>
-                  )}
+                  <Form.Label className="small text-white fw-bold">
+                    {pasos[step].label}
+                  </Form.Label>
 
-                  {pasos[step].type === "select" ? (
+                  {pasos[step].id === "birthdate" ? (
+                    <div className="d-flex gap-2">
+                      <Form.Select
+                        style={selectStyle}
+                        value={birthdateValue.split("-")[2] || ""}
+                        onChange={(e) => {
+                          const [y, m] = (birthdateValue || "2000-01-01").split(
+                            "-",
+                          );
+                          setValue("birthdate", `${y}-${m}-${e.target.value}`, {
+                            shouldValidate: true,
+                          });
+                        }}
+                      >
+                        <option value="">Día</option>
+                        {days.map((d) => (
+                          <option
+                            key={d}
+                            value={d}
+                            style={{ backgroundColor: "#212529" }}
+                          >
+                            {d}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <Form.Select
+                        style={selectStyle}
+                        value={birthdateValue.split("-")[1] || ""}
+                        onChange={(e) => {
+                          const [y, _, d] = (
+                            birthdateValue || "2000-01-01"
+                          ).split("-");
+                          setValue(
+                            "birthdate",
+                            `${y}-${e.target.value}-${d || "01"}`,
+                            { shouldValidate: true },
+                          );
+                        }}
+                      >
+                        <option value="">Mes</option>
+                        {months.map((m) => (
+                          <option
+                            key={m.v}
+                            value={m.v}
+                            style={{ backgroundColor: "#212529" }}
+                          >
+                            {m.n}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <Form.Select
+                        style={selectStyle}
+                        value={birthdateValue.split("-")[0] || ""}
+                        onChange={(e) => {
+                          const [_, m, d] = (
+                            birthdateValue || "2000-01-01"
+                          ).split("-");
+                          setValue(
+                            "birthdate",
+                            `${e.target.value}-${m || "01"}-${d || "01"}`,
+                            { shouldValidate: true },
+                          );
+                        }}
+                      >
+                        <option value="">Año</option>
+                        {years.map((y) => (
+                          <option
+                            key={y}
+                            value={y}
+                            style={{ backgroundColor: "#212529" }}
+                          >
+                            {y}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <input type="hidden" {...register("birthdate")} />
+                    </div>
+                  ) : pasos[step].type === "select" ? (
                     <Form.Select
                       {...register(pasos[step].id)}
                       isInvalid={!!errors[pasos[step].id]}
+                      style={selectStyle}
                     >
-                      <option value="">Seleccionar...</option>
+                      <option value="" style={{ backgroundColor: "#212529" }}>
+                        Seleccionar...
+                      </option>
                       {pasos[step].options.map((opt) => (
-                        <option key={opt} value={opt}>
+                        <option
+                          key={opt}
+                          value={opt}
+                          style={{ backgroundColor: "#212529" }}
+                        >
                           {opt}
                         </option>
                       ))}
                     </Form.Select>
-                  ) : pasos[step].type === "custom-birthdate" ? (
-                    <div className="animate__animated animate__fadeIn">
-                      <div
-                        className="p-3 mb-4 rounded-3 d-flex flex-column align-items-center shadow-sm"
-                        style={{
-                          background: "rgba(255,255,255,0.08)",
-                          border: "1px solid rgba(13,202,240,0.4)",
-                        }}
-                      >
-                        <Form.Label className="small text-info text-uppercase fw-bold mb-2">
-                          Paso 1: ¿Cuántos años tienes?
-                        </Form.Label>
-                        <div className="d-flex align-items-center gap-2 mb-2">
-                          <Form.Control
-                            type="tel"
-                            maxLength={2}
-                            placeholder="Ej. 25"
-                            value={tempAge}
-                            onChange={(e) => {
-                              const val = e.target.value.replace(/\D/g, "");
-                              setTempAge(val);
-                              if (val.length > 0) {
-                                const birthYear =
-                                  new Date().getFullYear() - parseInt(val);
-                                // Seteamos el 1 de enero de ese año para facilitar la UX
-                                setValue("birthdate", `${birthYear}-01-01`, {
-                                  shouldValidate: true,
-                                });
-                              }
-                            }}
-                            className="text-center fw-bold fs-4 shadow-sm"
-                            style={{
-                              width: "90px",
-                              borderRadius: "12px",
-                              background: "rgba(255,255,255,0.95)",
-                            }}
-                          />
-                          <span className="text-white fw-bold fs-5">años</span>
-                        </div>
-                        <small
-                          className="text-white-50 text-center"
-                          style={{ fontSize: "0.82rem", lineHeight: "1.2" }}
-                        >
-                          Escribe tu edad y el calendario se ajustará solo.
-                        </small>
-                      </div>
-
-                      <div className="d-flex flex-column align-items-center">
-                        <Form.Label className="small text-white fw-bold">
-                          Paso 2: Ajusta tu fecha exacta
-                        </Form.Label>
-                        <Form.Control
-                          {...register("birthdate")}
-                          type="date"
-                          isInvalid={!!errors.birthdate}
-                          className="text-center fw-bold shadow-sm"
-                          style={{
-                            borderRadius: "10px",
-                            padding: "12px",
-                            background: "rgba(255,255,255,0.95)",
-                            maxWidth: "220px",
-                          }}
-                        />
-                      </div>
-                    </div>
                   ) : (
                     <Form.Control
                       {...register(pasos[step].id)}
@@ -471,15 +506,13 @@ const FormClient = ({
                       autoFocus
                     />
                   )}
-
                   <Form.Control.Feedback
                     type="invalid"
-                    className="text-warning text-center mt-2 d-block"
+                    className="text-warning"
                   >
                     {errors[pasos[step].id]?.message}
                   </Form.Control.Feedback>
                 </Form.Group>
-
                 <ProgressBar
                   now={((step + 1) / pasos.length) * 100}
                   variant="info"
