@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form"; // Añadimos useWatch
 import { zodResolver } from "@hookform/resolvers/zod";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import isEmail from "validator/lib/isEmail";
@@ -18,12 +18,11 @@ import {
 
 import spinnerImg from "../assets/logoSpinner.png";
 
-// --- COMPONENTE DE REDIRECCIÓN (Interno o Importado) ---
+// --- COMPONENTE DE REDIRECCIÓN ---
 const SuccessRedirect = ({ url }) => {
   useEffect(() => {
     const meta = document.createElement("meta");
     meta.httpEquiv = "refresh";
-    // 5 segundos de delay: tiempo vital para que el Controller de UniFi autorice la MAC
     meta.content = `5; url=${url}`;
     document.head.appendChild(meta);
     return () => {
@@ -115,8 +114,6 @@ const schema = z.object({
     .refine(
       (val) => {
         const [user, domain] = val.split("@");
-
-        // Redujimos la lista negra solo a correos temporales o de prueba evidentes
         const blacklisted = [
           "test.com",
           "example.com",
@@ -124,13 +121,9 @@ const schema = z.object({
           "mailinator.com",
           "10minutemail.com",
         ];
-
         if (blacklisted.includes(domain)) return false;
-
-        // Validación suave de "teclazo" en lugar de bloquear por falta de vocales
         const keyboard = ["asdfgh", "qwerty", "zxcvbn"];
         if (keyboard.some((seq) => user.includes(seq))) return false;
-
         return domain.split(".")[0].length >= 2;
       },
       { message: "Ingresa un correo real." },
@@ -152,7 +145,7 @@ const pasos = [
     type: "text",
     autoCapitalize: "words",
   },
-  { id: "birthdate", label: "Fecha de Nacimiento", type: "date" },
+  { id: "birthdate", label: "Fecha de Nacimiento", type: "custom-birthdate" },
   {
     id: "gender",
     label: "Género",
@@ -192,17 +185,38 @@ const FormClient = ({
   const [userDataSaved, setUserDataSaved] = useState(null);
   const [showWelcomeAlert, setShowWelcomeAlert] = useState(false);
 
+  const [tempAge, setTempAge] = useState("");
+
   const {
     register,
     handleSubmit,
     trigger,
     getValues,
     setValue,
+    control,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(schema),
     mode: "onChange",
   });
+
+  // Observamos el valor de la fecha para la retroalimentación automática
+  const birthdateValue = useWatch({ control, name: "birthdate" });
+
+  // EFECTO: Si la fecha cambia (vía calendario), actualizamos la edad visualmente
+  useEffect(() => {
+    if (birthdateValue) {
+      const hoy = new Date();
+      const cumple = new Date(birthdateValue);
+      let edad = hoy.getFullYear() - cumple.getFullYear();
+      const m = hoy.getMonth() - cumple.getMonth();
+      if (m < 0 || (m === 0 && hoy.getDate() < cumple.getDate())) edad--;
+
+      if (edad >= 0 && edad <= 99) {
+        setTempAge(edad.toString());
+      }
+    }
+  }, [birthdateValue]);
 
   const rescatarUsuario = (user) => {
     setUserName(user.name);
@@ -299,49 +313,41 @@ const FormClient = ({
         show={showWelcomeAlert}
         onHide={() => setShowWelcomeAlert(false)}
         centered
-        backdrop="static" // Obliga a leer o cerrar manualmente
+        backdrop="static"
         contentClassName="glass-card border-0 text-white overflow-hidden"
       >
         <div
           style={{
             background: "linear-gradient(45deg, #0dcaf033, transparent)",
-
             height: "5px",
           }}
         />
-
         <Modal.Body className="p-4 text-center">
           <div style={{ fontSize: "3.5rem" }} className="mb-2">
             ✨
           </div>
-
           <h3 className="fw-bold text-white mb-3">¡Qué gusto tenerte aquí!</h3>
-
           <p className="text-white-50 mb-4" style={{ fontSize: "1.05rem" }}>
             Para disfrutar de una conexión premium y{" "}
             <strong className="text-info">activar tu acceso automático</strong>{" "}
             en futuras visitas, por favor completa tu perfil con{" "}
             <strong className="text-info">datos reales</strong>.
           </p>
-
           <div
             className="p-3 mb-4 rounded-3"
             style={{
               background: "rgba(255,255,255,0.05)",
-
               border: "1px solid rgba(255,255,255,0.1)",
             }}
           >
             <small className="text-info d-block fw-bold mb-1 text-uppercase text-decoration-underline">
               BENEFICIO EXCLUSIVO
             </small>
-
             <span className="small text-white-50">
               Si tus datos son correctos, el sistema te reconocerá al instante
               la próxima vez que nos visites.
             </span>
           </div>
-
           <Button
             variant="info"
             className="w-100 rounded-pill fw-bold text-white py-3 shadow-lg border-0"
@@ -369,10 +375,14 @@ const FormClient = ({
                     <span className="palmeras">🌴</span>
                   </Stack>
                 </Card.Title>
+
                 <Form.Group className="mb-3">
-                  <Form.Label className="small text-white fw-bold">
-                    {pasos[step].label}
-                  </Form.Label>
+                  {pasos[step].type !== "custom-birthdate" && (
+                    <Form.Label className="small text-white fw-bold">
+                      {pasos[step].label}
+                    </Form.Label>
+                  )}
+
                   {pasos[step].type === "select" ? (
                     <Form.Select
                       {...register(pasos[step].id)}
@@ -385,6 +395,71 @@ const FormClient = ({
                         </option>
                       ))}
                     </Form.Select>
+                  ) : pasos[step].type === "custom-birthdate" ? (
+                    <div className="animate__animated animate__fadeIn">
+                      <div
+                        className="p-3 mb-4 rounded-3 d-flex flex-column align-items-center shadow-sm"
+                        style={{
+                          background: "rgba(255,255,255,0.08)",
+                          border: "1px solid rgba(13,202,240,0.4)",
+                        }}
+                      >
+                        <Form.Label className="small text-info text-uppercase fw-bold mb-2">
+                          Paso 1: ¿Cuántos años tienes?
+                        </Form.Label>
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                          <Form.Control
+                            type="tel"
+                            maxLength={2}
+                            placeholder="Ej. 25"
+                            value={tempAge}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, "");
+                              setTempAge(val);
+                              if (val.length > 0) {
+                                const birthYear =
+                                  new Date().getFullYear() - parseInt(val);
+                                // Seteamos el 1 de enero de ese año para facilitar la UX
+                                setValue("birthdate", `${birthYear}-01-01`, {
+                                  shouldValidate: true,
+                                });
+                              }
+                            }}
+                            className="text-center fw-bold fs-4 shadow-sm"
+                            style={{
+                              width: "90px",
+                              borderRadius: "12px",
+                              background: "rgba(255,255,255,0.95)",
+                            }}
+                          />
+                          <span className="text-white fw-bold fs-5">años</span>
+                        </div>
+                        <small
+                          className="text-white-50 text-center"
+                          style={{ fontSize: "0.82rem", lineHeight: "1.2" }}
+                        >
+                          Escribe tu edad y el calendario se ajustará solo.
+                        </small>
+                      </div>
+
+                      <div className="d-flex flex-column align-items-center">
+                        <Form.Label className="small text-white fw-bold">
+                          Paso 2: Ajusta tu fecha exacta
+                        </Form.Label>
+                        <Form.Control
+                          {...register("birthdate")}
+                          type="date"
+                          isInvalid={!!errors.birthdate}
+                          className="text-center fw-bold shadow-sm"
+                          style={{
+                            borderRadius: "10px",
+                            padding: "12px",
+                            background: "rgba(255,255,255,0.95)",
+                            maxWidth: "220px",
+                          }}
+                        />
+                      </div>
+                    </div>
                   ) : (
                     <Form.Control
                       {...register(pasos[step].id)}
@@ -396,13 +471,15 @@ const FormClient = ({
                       autoFocus
                     />
                   )}
+
                   <Form.Control.Feedback
                     type="invalid"
-                    className="text-warning"
+                    className="text-warning text-center mt-2 d-block"
                   >
                     {errors[pasos[step].id]?.message}
                   </Form.Control.Feedback>
                 </Form.Group>
+
                 <ProgressBar
                   now={((step + 1) / pasos.length) * 100}
                   variant="info"
@@ -433,7 +510,6 @@ const FormClient = ({
             ) : (
               <div className="text-center">
                 {connected ? (
-                  /* --- AQUÍ SE DISPARA LA REDIRECCIÓN AUTOMÁTICA --- */
                   <SuccessRedirect url={isIOS ? iosUrl : instagramUrl} />
                 ) : (
                   <>
