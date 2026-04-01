@@ -5,8 +5,9 @@ import "./App.css";
 const UnifiData = {
   // Aquí colocas tus dos (o más) URLs. El sistema intentará en orden.
   urls: [
+    "https://buddhabarbeachhotel.ddns.net:8443",
     "https://hotelmaremares.duckdns.org:8443", // Principal
-    "https://buddhabarbeachhotel.ddns.net:8443", // Respaldo
+    // Respaldo
   ],
   siteID: "d41gke5t",
   userName: "API.Admin",
