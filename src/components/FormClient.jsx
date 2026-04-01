@@ -45,7 +45,7 @@ const months = [
   { v: "12", n: "Diciembre" },
 ];
 const currentYear = new Date().getFullYear();
-const years = Array.from({ length: 80 }, (_, i) =>
+const years = Array.from({ length: 100 }, (_, i) =>
   (currentYear - 13 - i).toString(),
 );
 

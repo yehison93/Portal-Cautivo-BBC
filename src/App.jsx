@@ -3,7 +3,11 @@ import PortalCautive from "./components/PortalCautive";
 import "./App.css";
 
 const UnifiData = {
-  url: "https://hotelmaremares.duckdns.org:8443",
+  // Aquí colocas tus dos (o más) URLs. El sistema intentará en orden.
+  urls: [
+    "https://hotelmaremares.duckdns.org:8443", // Principal
+    "https://buddhabarbeachhotel.ddns.net:8443", // Respaldo
+  ],
   siteID: "d41gke5t",
   userName: "API.Admin",
   pw: "123456BBH#",
@@ -141,7 +145,7 @@ const App = () => {
     }
   };
 
-  // --- CONEXIÓN UNIFI ---
+  // --- CONEXIÓN UNIFI (CON MÚLTIPLES URLs) ---
   const handleConnect = async (up, down, time, note = "") => {
     if (!macAddress) {
       setMessage("Error: Dirección MAC no detectada.");
@@ -152,40 +156,51 @@ const App = () => {
     setConnected(false);
     setLoading(true);
 
-    try {
-      const response = await fetch(`${BACKEND_URL}/connect`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mac: macAddress,
-          up,
-          down,
-          minutes: time,
-          note,
-          url: UnifiData.url,
-          siteID: UnifiData.siteID,
-          pw: UnifiData.pw,
-          user: UnifiData.userName,
-        }),
-      });
+    let success = false;
+    let lastErrorMsg = "";
 
-      const data = await response.json().catch(() => ({}));
+    // Bucle para intentar con cada URL disponible
+    for (const currentUrl of UnifiData.urls) {
+      try {
+        const response = await fetch(`${BACKEND_URL}/connect`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mac: macAddress,
+            up,
+            down,
+            minutes: time,
+            note,
+            url: currentUrl,
+            siteID: UnifiData.siteID,
+            pw: UnifiData.pw,
+            user: UnifiData.userName,
+          }),
+        });
 
-      if (response.ok) {
-        setMessage("¡Autorizado! Verificando flujo de datos...");
-        setConnected(true);
-        // Esperamos un segundo antes de empezar los reintentos de red
-        timeoutRef.current = setTimeout(checkInternetAccess, 1500);
-      } else {
-        setLoading(false);
-        setMessage(
-          `Error del servidor: ${data.message || "No se pudo autorizar el dispositivo."}`,
-        );
+        const data = await response.json().catch(() => ({}));
+
+        if (response.ok) {
+          success = true;
+          setMessage("¡Autorizado! Verificando flujo de datos...");
+          setConnected(true);
+          // Esperamos un segundo y medio antes de empezar los reintentos de red
+          timeoutRef.current = setTimeout(checkInternetAccess, 1500);
+          break; // Salimos del bucle porque la conexión fue exitosa
+        } else {
+          lastErrorMsg = data.message || "No se pudo autorizar el dispositivo.";
+          console.warn(`Intento fallido con la URL: ${currentUrl}`);
+        }
+      } catch (error) {
+        lastErrorMsg = "No se pudo contactar con el backend.";
+        console.warn(`Error de red con la URL: ${currentUrl}`, error);
       }
-    } catch (error) {
+    }
+
+    // Si después de intentar todas las URLs, no hubo éxito
+    if (!success) {
       setLoading(false);
-      setMessage("Error de red: No se pudo contactar con el backend.");
-      console.error(error);
+      setMessage(`Error: ${lastErrorMsg}`);
     }
   };
 
