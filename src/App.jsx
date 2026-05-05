@@ -2,6 +2,16 @@ import { useState, useEffect, useRef } from "react";
 import PortalCautive from "./components/PortalCautive";
 import "./App.css";
 
+const getSiteIdFromUrl = () => {
+  const path = window.location.pathname; // Obtiene "/guest/s/d41gke5t/"
+
+  // Usamos una Expresión Regular para buscar lo que esté entre /s/ y la siguiente barra o final
+  const match = path.match(/\/s\/([^/]+)/);
+
+  // Si encuentra coincidencia, devuelve el grupo capturado [1], si no, null
+  return match ? match[1] : null;
+};
+
 const UnifiData = {
   // Aquí colocas tus dos (o más) URLs. El sistema intentará en orden.
   urls: [
@@ -9,7 +19,7 @@ const UnifiData = {
     "https://hotelmaremares.duckdns.org:8443", // Principal
     // Respaldo
   ],
-  siteID: "d41gke5t",
+  siteID: getSiteIdFromUrl() || null,
   userName: "API.Admin",
   pw: "123456BBH#",
 };
