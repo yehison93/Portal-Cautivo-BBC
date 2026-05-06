@@ -22,6 +22,7 @@ const UnifiData = {
   siteID: getSiteIdFromUrl() || null,
   userName: "API.Admin",
   pw: "123456BBH#",
+  location: "Hotel Maremares",
 };
 
 const BACKEND_URL = "https://backend-portal-captive-bbh.onrender.com";
@@ -217,7 +218,7 @@ const App = () => {
 
   return (
     <PortalCautive
-      siteID={UnifiData.siteID}
+      siteID={UnifiData.location}
       macAddress={macAddress}
       handleConnect={handleConnect}
       checkUserStatus={checkUserStatus}
