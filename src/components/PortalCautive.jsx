@@ -19,6 +19,7 @@ const images = import.meta.glob(
 );
 
 const PortalCautive = ({
+  siteID,
   macAddress,
   handleConnect,
   message,
@@ -103,6 +104,7 @@ const PortalCautive = ({
             {macAddress ? (
               <>
                 <FormClient
+                  siteID={siteID}
                   handleConnect={handleConnect}
                   instagramUrl={instagramUrl}
                   showInstagramBtn={showInstagramBtn}

@@ -20,7 +20,7 @@ import spinnerImg from "../assets/logoSpinner.png";
 
 // --- ESTILOS PARA CORREGIR SELECTS EN WINDOWS ---
 const selectStyle = {
-  backgroundColor: "#1a1d20", // Fondo oscuro sólido para evitar problemas de contraste
+  backgroundColor: "#1a1d20",
   color: "#ffffff",
   border: "1px solid rgba(255, 255, 255, 0.2)",
   appearance: "none",
@@ -79,9 +79,10 @@ const SuccessRedirect = ({ url }) => {
 
 const BACKEND_URL = "https://backend-portal-captive-bbh.onrender.com";
 
+// Agregamos siteID a la nota que verá el administrador
 const generarNotaCliente = (datos) => {
-  const { name, phone, email, address, birthdate } = datos;
-  return `Cli: ${name} | Tel: ${phone} | Mail: ${email} | Dir: ${address} | Nac: ${birthdate}`;
+  const { name, phone, email, address, birthdate, siteID } = datos;
+  return `ID: ${siteID || "N/A"} | Cli: ${name} | Tel: ${phone} | Mail: ${email} | Dir: ${address} | Nac: ${birthdate}`;
 };
 
 const isGarbageText = (text) => {
@@ -205,6 +206,7 @@ const FormClient = ({
   clientLoading,
   connected,
   macAddress,
+  siteID, // Propiedad recibida
 }) => {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -248,9 +250,13 @@ const FormClient = ({
           rescatarUsuario(user);
           if (!autoConnectAttempted) {
             setAutoConnectAttempted(true);
-            handleConnect(10000, 10000, 10080, generarNotaCliente(user)).catch(
-              () => {},
-            );
+            // Incluimos siteID en la nota de auto-conexión
+            handleConnect(
+              10000,
+              10000,
+              10080,
+              generarNotaCliente({ ...user, siteID }),
+            ).catch(() => {});
           }
         } else {
           setShowWelcomeAlert(true);
@@ -262,7 +268,7 @@ const FormClient = ({
       }
     };
     checkMac();
-  }, [macAddress, checkUserStatus]);
+  }, [macAddress, checkUserStatus, siteID]);
 
   const handleNext = async () => {
     const currentId = pasos[step].id;
@@ -296,8 +302,8 @@ const FormClient = ({
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const finalData = userDataSaved || data;
-      await saveUserToFirebase({ ...finalData, mac: macAddress });
+      const finalData = { ...(userDataSaved || data), siteID, mac: macAddress };
+      await saveUserToFirebase(finalData);
       await handleConnect(10000, 10000, 10080, generarNotaCliente(finalData));
     } catch (error) {
       alert("Error: " + error.message);
@@ -324,54 +330,45 @@ const FormClient = ({
         show={showWelcomeAlert}
         onHide={() => setShowWelcomeAlert(false)}
         centered
-        backdrop="static" // Obliga a leer o cerrar manualmente
+        backdrop="static"
         contentClassName="glass-card border-0 text-white overflow-hidden"
       >
         <div
           style={{
             background: "linear-gradient(45deg, #0dcaf033, transparent)",
-
             height: "5px",
           }}
         />
-
         <Modal.Body className="p-4 text-center">
           <div style={{ fontSize: "3.5rem" }} className="mb-2">
             ✨
           </div>
-
           <h3 className="fw-bold text-white mb-3">¡Qué gusto tenerte aquí!</h3>
-
           <p className="text-white-50 mb-4" style={{ fontSize: "1.05rem" }}>
             Para disfrutar de una conexión premium y{" "}
             <strong className="text-info">activar tu acceso automático</strong>{" "}
             en futuras visitas, por favor completa tu perfil con{" "}
             <strong className="text-info">datos reales</strong>.
           </p>
-
           <div
             className="p-3 mb-4 rounded-3"
             style={{
               background: "rgba(255,255,255,0.05)",
-
               border: "1px solid rgba(255,255,255,0.1)",
             }}
           >
             <small className="text-info d-block fw-bold mb-1 text-uppercase text-decoration-underline">
               BENEFICIO EXCLUSIVO
             </small>
-
             <span className="small text-white-50">
               Si tus datos son correctos, el sistema te reconocerá al instante
               la próxima vez que nos visites.
             </span>
           </div>
-
           <Button
             variant="info"
             className="w-100 rounded-pill fw-bold text-white py-3 shadow-lg border-0"
             onClick={() => setShowWelcomeAlert(false)}
-            style={{ letterSpacing: "1px" }}
           >
             COMENZAR REGISTRO
           </Button>
@@ -398,7 +395,6 @@ const FormClient = ({
                   <Form.Label className="small text-white fw-bold">
                     {pasos[step].label}
                   </Form.Label>
-
                   {pasos[step].id === "birthdate" ? (
                     <div className="d-flex gap-2">
                       <Form.Select

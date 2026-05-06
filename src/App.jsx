@@ -217,6 +217,7 @@ const App = () => {
 
   return (
     <PortalCautive
+      siteID={UnifiData.siteID}
       macAddress={macAddress}
       handleConnect={handleConnect}
       checkUserStatus={checkUserStatus}
