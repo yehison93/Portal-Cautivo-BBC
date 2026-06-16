@@ -127,8 +127,8 @@ const schema = z.object({
         return false;
       },
       {
-        message:
-          "Número inválido. Extranjeros: incluyan su código (ej. +1, +57).",
+        message: `Número inválido.
+          Extranjeros: incluyan su código (ej. +1, +57).`,
       },
     ),
   name: z
@@ -179,7 +179,7 @@ const schema = z.object({
 const pasos = [
   {
     id: "phone",
-    label: "Número de Teléfono (Extranjeros usar +)",
+    label: "Número de Teléfono",
     placeholder: "Ej. 04141234567 o +13051234567",
     type: "text",
     inputMode: "tel",
