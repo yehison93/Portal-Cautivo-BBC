@@ -100,20 +100,36 @@ const schema = z.object({
     .trim()
     .refine(
       (val) => {
-        const phoneToValidate = val.startsWith("+")
-          ? val
-          : `+58${val.replace(/^0/, "")}`;
-        const phoneNumber = parsePhoneNumberFromString(phoneToValidate);
-        if (!phoneNumber || !phoneNumber.isValid()) return false;
-        const nationalNumber = phoneNumber.nationalNumber;
-        if (/(\d)\1{5,}/.test(nationalNumber)) return false;
-        const sequences = ["0123456789", "9876543210"];
-        if (sequences.some((s) => s.includes(nationalNumber.slice(-7))))
+        // 1. Intentamos validar asumiendo Venezuela ('VE') como país por defecto.
+        const phoneNumber = parsePhoneNumberFromString(val, "VE");
+
+        // Función auxiliar para detectar números basura/inventados
+        const isGarbageNumber = (numStr) => {
+          if (/(\d)\1{5,}/.test(numStr)) return true;
+          const sequences = ["0123456789", "9876543210"];
+          if (sequences.some((s) => s.includes(numStr.slice(-7)))) return true;
+          if (/^(\d{2})\1+$/.test(numStr.slice(-6))) return true;
           return false;
-        if (/^(\d{2})\1+$/.test(nationalNumber.slice(-6))) return false;
-        return true;
+        };
+
+        // Si la librería lo reconoce como válido (nacional o internacional con +)
+        if (phoneNumber && phoneNumber.isValid()) {
+          return !isGarbageNumber(phoneNumber.nationalNumber);
+        }
+
+        // 2. Fallback para turistas: Si la librería falla,
+        // validamos que tenga una longitud razonable según el estándar ITU (entre 8 y 15 dígitos).
+        const rawDigits = val.replace(/\D/g, "");
+        if (rawDigits.length >= 8 && rawDigits.length <= 15) {
+          return !isGarbageNumber(rawDigits);
+        }
+
+        return false;
       },
-      { message: "Número no permitido. Ingresa uno real." },
+      {
+        message:
+          "Número inválido. Extranjeros: incluyan su código (ej. +1, +57).",
+      },
     ),
   name: z
     .string()
@@ -163,8 +179,8 @@ const schema = z.object({
 const pasos = [
   {
     id: "phone",
-    label: "Número de Teléfono",
-    placeholder: "Ej. 4241234567",
+    label: "Número de Teléfono (Extranjeros usar +)",
+    placeholder: "Ej. 04141234567 o +13051234567",
     type: "text",
     inputMode: "tel",
   },
@@ -206,7 +222,7 @@ const FormClient = ({
   clientLoading,
   connected,
   macAddress,
-  siteID, // Propiedad recibida
+  siteID,
 }) => {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -250,7 +266,6 @@ const FormClient = ({
           rescatarUsuario(user);
           if (!autoConnectAttempted) {
             setAutoConnectAttempted(true);
-            // Incluimos siteID en la nota de auto-conexión
             handleConnect(
               10000,
               10000,
@@ -277,7 +292,7 @@ const FormClient = ({
         setLoading(true);
         try {
           const res = await fetch(
-            `${BACKEND_URL}/check-phone/${getValues("phone")}`,
+            `${BACKEND_URL}/check-phone/${getValues("phone").replace(/\+/g, "%2B")}`,
           );
           if (res.ok) {
             const user = await res.json();
