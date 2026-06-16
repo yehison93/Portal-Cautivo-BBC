@@ -375,7 +375,7 @@ const FormClient = ({
             <small className="text-info d-block fw-bold mb-1 text-uppercase text-decoration-underline">
               BENEFICIO EXCLUSIVO
             </small>
-            <span className="small text-white-50">
+            <span className="small text-warning opacity-75">
               Si tus datos son correctos, el sistema te reconocerá al instante
               la próxima vez que nos visites.
             </span>
